@@ -3,7 +3,7 @@ name: Daily Job Scraping Pipeline
 on:
   # Execução agendada: 8h UTC = 5h BRT (horário de Brasília)
   schedule:
-    - cron: '0 8 * * *'
+    - cron: '0 8 * * *'  # Às 05h horário de Brasília
   
   # Permite execução manual
   workflow_dispatch:
