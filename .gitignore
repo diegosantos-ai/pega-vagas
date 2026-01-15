@@ -1,0 +1,60 @@
+.env
+.env.local
+__pycache__/
+*.py[cod]
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Data (pode ser grande)
+data/bronze/
+data/silver/
+data/gold/*.duckdb
+
+# Manter estrutura de diretórios
+!data/.gitkeep
+!data/bronze/.gitkeep
+!data/silver/.gitkeep
+!data/gold/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Playwright/Camoufox cache
+.cache/
+
+# Dados sensíveis
+data/.seen_jobs.json
+*.secrets
+*.secret
+.env.*
+!.env.example
+
+# Parquet exports
+data/gold/*.parquet

@@ -1,0 +1,132 @@
+name: Daily Job Scraping Pipeline
+
+on:
+  # Execução agendada: 8h UTC = 5h BRT (horário de Brasília)
+  schedule:
+    - cron: '0 8 * * *'
+  
+  # Permite execução manual
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Termo de busca (ex: Data Engineer)'
+        required: false
+        default: 'Data Engineer'
+      max_jobs:
+        description: 'Número máximo de vagas'
+        required: false
+        default: '50'
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  scrape-and-process:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. Checkout do código
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Setup Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      # 3. Cache do Playwright/Camoufox
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+
+      # 4. Instala dependências
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          playwright install firefox
+
+      # 5. Executa scraping (Bronze)
+      - name: Run Bronze Layer (Scraping)
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          PROXY_URL: ${{ secrets.PROXY_URL }}
+        run: |
+          python -m src.pipeline bronze \
+            --query "${{ github.event.inputs.query || 'Data Engineer' }}" \
+            --max-jobs ${{ github.event.inputs.max_jobs || '50' }}
+        continue-on-error: true
+
+      # 6. Executa processamento LLM (Silver)
+      - name: Run Silver Layer (LLM Processing)
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          python -m src.pipeline silver
+        continue-on-error: true
+
+      # 7. Executa transformações (Gold)
+      - name: Run Gold Layer (DuckDB Transform)
+        run: |
+          python -m src.pipeline gold
+
+      # 8. Exporta para Parquet
+      - name: Export to Parquet
+        run: |
+          python -m src.pipeline export
+
+      # 9. Envia notificações Telegram
+      - name: Send Telegram Notifications
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python -m src.pipeline notify
+        continue-on-error: true
+
+      # 10. Upload de artefatos (para debug)
+      - name: Upload Bronze artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bronze-data-${{ github.run_number }}
+          path: data/bronze/
+          retention-days: 7
+
+      # 11. Upload de dados processados
+      - name: Upload Gold artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gold-data-${{ github.run_number }}
+          path: data/gold/
+          retention-days: 30
+
+      # 11. (Opcional) Commit dados de volta ao repo
+      # Descomente se quiser versionamento de dados no Git
+      # - name: Commit data changes
+      #   run: |
+      #     git config --local user.email "github-actions[bot]@users.noreply.github.com"
+      #     git config --local user.name "github-actions[bot]"
+      #     git add data/gold/*.parquet
+      #     git diff --staged --quiet || git commit -m "chore: update job data $(date +%Y-%m-%d)"
+      #     git push
+
+      # 12. Notificação de sucesso/falha
+      - name: Send notification on failure
+        if: failure()
+        run: |
+          echo "Pipeline failed! Check the logs."
+          # curl -X POST ${{ secrets.ALERT_WEBHOOK_URL }} \
+          #   -H "Content-Type: application/json" \
+          #   -d '{"text": "⚠️ Pipeline de vagas falhou!"}'
+
+      - name: Summary
+        run: |
+          echo "## 📊 Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 Query: ${{ github.event.inputs.query || 'Data Engineer' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 📁 Max Jobs: ${{ github.event.inputs.max_jobs || '50' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ⏰ Run: $(date)" >> $GITHUB_STEP_SUMMARY
