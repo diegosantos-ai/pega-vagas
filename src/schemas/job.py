@@ -80,27 +80,13 @@ class VagaEmprego(BaseModel):
     titulo_original: str = Field(
         description="Título original da vaga como aparece no anúncio.",
     )
-    titulo_normalizado: Literal[
-        "Data Engineer",
-        "Data Analyst",
-        "Data Scientist",
-        "Analytics Engineer",
-        "ML Engineer",
-        "AI Engineer",
-        "BI Analyst",
-        "Data Architect",
-        "Platform Engineer",
-        "Software Engineer",
-        "Backend Engineer",
-        "DevOps Engineer",
-        "Outro",
-    ] = Field(
+    titulo_normalizado: Optional[str] = Field(
+        default="Outro",
         description="Título normalizado para categorização.",
     )
-    senioridade: Literal["Estagio", "Junior", "Pleno", "Senior", "Lead", "Staff", "Principal"] = (
-        Field(
-            description="Nível de senioridade inferido do título ou requisitos.",
-        )
+    senioridade: Optional[str] = Field(
+        default=None,
+        description="Nível de senioridade inferido do título ou requisitos.",
     )
 
     # Empresa
@@ -111,9 +97,9 @@ class VagaEmprego(BaseModel):
 
     # Localização
     localidade: Optional[Localidade] = Field(default=None, description="Localização da vaga.")
-    modelo_trabalho: Literal["Remoto", "Hibrido", "Presencial"] = Field(
+    modelo_trabalho: Optional[str] = Field(
         default="Presencial",
-        description="Modelo de trabalho.",
+        description="Modelo de trabalho (Remoto, Hibrido, Presencial).",
     )
 
     # Remuneração
@@ -123,9 +109,9 @@ class VagaEmprego(BaseModel):
     )
 
     # Requisitos
-    skills: list[Habilidade] = Field(
+    skills: list[str] = Field(
         default_factory=list,
-        description="Lista de habilidades técnicas e soft skills.",
+        description="Lista de habilidades técnicas e soft skills (ex: Python, SQL, Comunicação).",
     )
     anos_experiencia_min: Optional[int] = Field(
         default=None,
@@ -133,7 +119,8 @@ class VagaEmprego(BaseModel):
     )
 
     # Conteúdo
-    descricao_resumida: str = Field(
+    descricao_resumida: Optional[str] = Field(
+        default=None,
         description="Resumo de 2-3 frases sobre a vaga e responsabilidades.",
     )
     beneficios: list[str] = Field(

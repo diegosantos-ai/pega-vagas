@@ -47,15 +47,15 @@ def clean_html(
     if not html:
         return ""
 
-    # Tenta trafilatura primeiro (melhor qualidade)
-    if HAS_TRAFILATURA:
-        text = _clean_with_trafilatura(html, include_tables)
-        if text:
-            return _truncate_smart(text, max_chars)
-
-    # Fallback para BeautifulSoup
+    # Prioriza BeautifulSoup para vagas (trafilatura remove muita coisa importante)
     if HAS_BS4:
         text = _clean_with_bs4(html)
+        if text and len(text) > 100:
+            return _truncate_smart(text, max_chars)
+
+    # Fallback para trafilatura
+    if HAS_TRAFILATURA:
+        text = _clean_with_trafilatura(html, include_tables)
         if text:
             return _truncate_smart(text, max_chars)
 
@@ -66,6 +66,14 @@ def clean_html(
 def _clean_with_trafilatura(html: str, include_tables: bool) -> Optional[str]:
     """Usa trafilatura para extração de alto nível."""
     try:
+        # Extrai título primeiro (trafilatura às vezes remove)
+        title = ""
+        if HAS_BS4:
+            soup = BeautifulSoup(html, "html.parser")
+            h1 = soup.find("h1")
+            if h1:
+                title = h1.get_text(strip=True) + "\n\n"
+        
         text = trafilatura_extract(
             html,
             include_tables=include_tables,
@@ -73,8 +81,13 @@ def _clean_with_trafilatura(html: str, include_tables: bool) -> Optional[str]:
             include_images=False,
             include_comments=False,
             deduplicate=True,
-            favor_precision=True,
+            favor_precision=False,  # Menos agressivo para preservar mais conteúdo
         )
+        
+        # Adiciona título no início se não estiver presente
+        if text and title and title.strip() not in text:
+            text = title + text
+        
         return text
     except Exception as e:
         logger.debug(f"Trafilatura falhou: {e}")

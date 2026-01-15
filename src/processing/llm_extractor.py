@@ -27,23 +27,36 @@ Sua tarefa é analisar o HTML/texto de uma vaga e extrair informações estrutur
 
 REGRAS IMPORTANTES:
 1. NUNCA invente informações. Se não encontrar um dado, use null.
-2. Normalize títulos para as categorias definidas (Data Engineer, Data Analyst, etc.)
-3. Infira a senioridade baseado em:
-   - Anos de experiência exigidos
-   - Palavras-chave: "Jr", "Junior", "Pleno", "Senior", "Lead", "Staff"
-   - Complexidade das responsabilidades
-4. Para salários:
+
+2. TÍTULO NORMALIZADO - Use EXATAMENTE uma dessas categorias:
+   - "Data Engineer" (Engenheiro de Dados)
+   - "Data Analyst" (Analista de Dados)
+   - "Data Scientist" (Cientista de Dados)
+   - "Analytics Engineer" (Engenheiro de Analytics)
+   - "Machine Learning Engineer" (Engenheiro de ML)
+   - "BI Analyst" (Analista de BI)
+   - "Data Architect" (Arquiteto de Dados)
+   - "Outro" (se não se encaixar em nenhuma acima)
+
+3. SENIORIDADE - Infira baseado em:
+   - Palavras-chave: "Jr", "Junior", "Pleno", "Senior", "Lead", "Staff", "Principal"
+   - Anos de experiência: 0-2 = Junior, 2-5 = Pleno, 5+ = Senior
+   - Use: "Junior", "Pleno", "Senior", "Lead", "Staff" ou "Não Informada"
+
+4. MODELO DE TRABALHO - Identifique corretamente:
+   - "Remoto" = trabalho 100% remoto, home office, remote, anywhere
+   - "Híbrido" = híbrido, presencial parcial, alguns dias no escritório
+   - "Presencial" = presencial, on-site, no escritório
+   - ATENÇÃO: Se mencionar "remoto" ou "100% remoto", use "Remoto"
+
+5. Para salários:
    - Converta tudo para base MENSAL
    - Se em USD, mantenha USD (não converta para BRL)
    - Separe salário base de bônus quando possível
-5. Classifique skills corretamente:
-   - linguagem: Python, SQL, Java, etc.
-   - framework: Spark, Airflow, dbt, etc.
-   - cloud: AWS, GCP, Azure
-   - database: PostgreSQL, MySQL, MongoDB, etc.
-   - ferramenta: Git, Docker, Kubernetes
-   - metodologia: Agile, Scrum
-   - soft_skill: Comunicação, Liderança
+
+6. Para skills, retorne uma LISTA PLANA de strings (ex: ["Python", "SQL", "AWS"]).
+
+7. Para beneficios, retorne uma lista de strings. Se vazio, retorne [].
 
 IMPORTANTE: Retorne APENAS o JSON válido, sem texto adicional."""
 
@@ -63,29 +76,26 @@ class BaseLLMClient(ABC):
 
 
 class GeminiClient(BaseLLMClient):
-    """Cliente para Google Gemini API."""
+    """Cliente para Google Gemini API (novo SDK google-genai)."""
 
-    def __init__(self, model: str = "gemini-1.5-flash"):
-        import google.generativeai as genai
+    def __init__(self, model: str = "gemini-2.0-flash"):
+        from google import genai
+        from google.genai import types
 
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise ValueError("GOOGLE_API_KEY não configurada")
 
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(
-            model_name=model,
-            generation_config={
-                "response_mime_type": "application/json",
-                "response_schema": get_json_schema(),
-            },
-            system_instruction=SYSTEM_PROMPT,
-        )
-        logger.info("Gemini client inicializado", model=model)
+        self.client = genai.Client(api_key=api_key)
+        self.model_name = model
+        self.types = types
+        logger.info("Gemini client inicializado (novo SDK)", model=model)
 
     async def extract(self, html_content: str) -> dict:
-        """Extrai dados usando Gemini."""
-        prompt = f"""Analise esta vaga de emprego e extraia os dados estruturados:
+        """Extrai dados usando Gemini (novo SDK)."""
+        prompt = f"""{SYSTEM_PROMPT}
+
+Analise esta vaga de emprego e extraia os dados estruturados:
 
 ---
 {html_content}
@@ -93,7 +103,13 @@ class GeminiClient(BaseLLMClient):
 
 Retorne um JSON com os campos: vaga (VagaEmprego), confianca (float 0-1), campos_incertos (lista)."""
 
-        response = await self.model.generate_content_async(prompt)
+        response = await self.client.aio.models.generate_content(
+            model=self.model_name,
+            contents=prompt,
+            config=self.types.GenerateContentConfig(
+                response_mime_type="application/json",
+            ),
+        )
         return json.loads(response.text)
 
 
@@ -154,7 +170,7 @@ class LLMExtractor:
 
         # Escolhe cliente baseado no provider
         if provider == "gemini":
-            self.client = GeminiClient(model=model or "gemini-1.5-flash")
+            self.client = GeminiClient(model=model or "gemini-2.0-flash")
         elif provider == "openai":
             self.client = OpenAIClient(model=model or "gpt-4o-mini")
         else:
@@ -167,6 +183,8 @@ class LLMExtractor:
         html_content: str,
         url: Optional[str] = None,
         platform: Optional[str] = None,
+        title_hint: Optional[str] = None,
+        company_hint: Optional[str] = None,
     ) -> VagaExtractionResult:
         """
         Extrai dados estruturados de uma vaga a partir do HTML.
@@ -189,6 +207,47 @@ class LLMExtractor:
             try:
                 raw_result = await self.client.extract(cleaned_text)
 
+                # Heurística de correção: se o JSON for a vaga direta (sem wrapper)
+                if "vaga" not in raw_result and "titulo" in raw_result:
+                    raw_result = {
+                        "vaga": raw_result,
+                        "confianca": 0.8,
+                        "campos_incertos": []
+                    }
+                
+                # Normalização de campos
+                vaga_dict = raw_result.get("vaga", raw_result)
+                
+                # Mapeia titulo -> titulo_original
+                if "titulo" in vaga_dict and "titulo_original" not in vaga_dict:
+                    vaga_dict["titulo_original"] = vaga_dict.pop("titulo")
+                
+                # Garante titulo_normalizado
+                if "titulo_normalizado" not in vaga_dict:
+                     vaga_dict["titulo_normalizado"] = "Outro"
+                     
+                # Garante empresa (se não vier no JSON, o hint lá embaixo preenche, mas precisa passar na validação se for obrigatório)
+                if "empresa" not in vaga_dict:
+                    vaga_dict["empresa"] = "Empresa Confidencial" # Placeholder, será substituído pelo hint
+                
+                # Garante senioridade
+                if "senioridade" not in vaga_dict or vaga_dict["senioridade"] is None:
+                    vaga_dict["senioridade"] = "Não Informada"
+                
+                # Normaliza modelo_de_trabalho -> modelo_trabalho
+                if "modelo_de_trabalho" in vaga_dict and "modelo_trabalho" not in vaga_dict:
+                    vaga_dict["modelo_trabalho"] = vaga_dict.pop("modelo_de_trabalho")
+                
+                # Normaliza salario_base -> salario
+                if "salario_base" in vaga_dict and "salario" not in vaga_dict:
+                    vaga_dict["salario"] = vaga_dict.pop("salario_base")
+                
+                # Atualiza raw_result se foi modificado via referência ou atribuição
+                if "vaga" in raw_result:
+                    raw_result["vaga"] = vaga_dict
+                else:
+                    raw_result = {"vaga": vaga_dict, "confianca": 0.8, "campos_incertos": []}    
+
                 # 3. Valida com Pydantic
                 result = VagaExtractionResult.model_validate(raw_result)
 
@@ -197,6 +256,10 @@ class LLMExtractor:
                     result.vaga.url_origem = url
                 if platform:
                     result.vaga.plataforma = platform
+                if title_hint and not result.vaga.titulo_original:
+                     result.vaga.titulo_original = title_hint
+                if company_hint and not result.vaga.empresa:
+                     result.vaga.empresa = company_hint
 
                 logger.info(
                     "Extração bem-sucedida",
@@ -229,7 +292,7 @@ class ExtractionError(Exception):
 
 def load_extractor_from_env() -> LLMExtractor:
     """Carrega extractor baseado nas variáveis de ambiente."""
-    model = os.getenv("LLM_MODEL", "gemini-1.5-flash")
+    model = os.getenv("LLM_MODEL", "gemini-2.0-flash")
 
     if "gemini" in model.lower():
         provider = "gemini"

@@ -42,12 +42,12 @@ def run_transforms(db_path: str = "data/gold/vagas.duckdb") -> None:
     conn.execute("""
         CREATE OR REPLACE VIEW vw_top_skills AS
         SELECT
-            skill.nome as skill_nome,
-            skill.categoria as skill_categoria,
+            skill as skill_nome,
+            'Geral' as skill_categoria,
             COUNT(*) as ocorrencias,
             ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM fact_vagas), 1) as pct_vagas
         FROM fact_vagas, UNNEST(skills) as t(skill)
-        GROUP BY skill.nome, skill.categoria
+        GROUP BY skill
         ORDER BY ocorrencias DESC
     """)
 
@@ -55,13 +55,13 @@ def run_transforms(db_path: str = "data/gold/vagas.duckdb") -> None:
     conn.execute("""
         CREATE OR REPLACE VIEW vw_skills_com_python AS
         SELECT
-            s2.nome as skill,
+            s2 as skill,
             COUNT(*) as ocorrencias
         FROM fact_vagas f,
              UNNEST(f.skills) as t1(s1),
              UNNEST(f.skills) as t2(s2)
-        WHERE s1.nome = 'Python' AND s2.nome != 'Python'
-        GROUP BY s2.nome
+        WHERE s1 = 'Python' AND s2 != 'Python'
+        GROUP BY s2
         ORDER BY ocorrencias DESC
         LIMIT 20
     """)

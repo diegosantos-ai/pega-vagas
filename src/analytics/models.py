@@ -82,8 +82,8 @@ CREATE TABLE IF NOT EXISTS fact_vagas (
     salario_max DECIMAL(12,2),
     salario_moeda VARCHAR DEFAULT 'BRL',
     
-    -- Skills armazenadas como array de structs
-    skills STRUCT(nome VARCHAR, categoria VARCHAR, obrigatoriedade BOOLEAN)[],
+    -- Skills armazenadas como array de strings
+    skills VARCHAR[],
     
     -- Metadados
     anos_experiencia_min INTEGER,
@@ -285,9 +285,17 @@ def load_to_gold(
             )
 
             # Tempo SK baseado na data de coleta
-            data_coleta = datetime.fromisoformat(
-                vaga.get("data_coleta", datetime.now().isoformat())
-            )
+            raw_data_coleta = vaga.get("data_coleta")
+            if isinstance(raw_data_coleta, (date, datetime)):
+                data_coleta = raw_data_coleta
+            else:
+                # Se for None ou string
+                data_coleta = datetime.fromisoformat(
+                    str(raw_data_coleta) if raw_data_coleta else datetime.now().isoformat()
+                )
+            
+            # Ensure it's a datetime for consistency if needed, or just use it
+            # But the code below uses strftime, which works on date too
             tempo_sk = int(data_coleta.strftime("%Y%m%d"))
 
             # Garante que a data existe na dimensão tempo

@@ -40,18 +40,42 @@ async def run_bronze(query: str, max_jobs: int, platform: str) -> list[str]:
 
     from src.ingestion import BrowserManager
     from src.ingestion.scrapers.gupy import GupyScraper
+    from src.ingestion.scrapers.vagas import VagasScraper
 
     saved_files = []
 
-    # Por enquanto, implementado apenas Gupy
-    if platform in ("all", "gupy"):
-        try:
-            async with BrowserManager(headless=True) as browser:
-                scraper = GupyScraper(browser)
-                files = await scraper.run(query=query, max_jobs=max_jobs)
-                saved_files.extend(files)
-        except Exception as e:
-            logger.error(f"Erro no scraping Gupy: {e}")
+    try:
+        async with BrowserManager(headless=True) as browser:
+            # Gupy Scraper
+            if platform in ("all", "gupy"):
+                try:
+                    scraper = GupyScraper(browser)
+                    files = await scraper.run(query=query, max_jobs=max_jobs)
+                    saved_files.extend(files)
+                except Exception as e:
+                    logger.error(f"Erro no scraping Gupy: {e}")
+
+            # Vagas.com.br Scraper
+            if platform in ("all", "vagas"):
+                try:
+                    scraper = VagasScraper(browser)
+                    files = await scraper.run(query=query, max_jobs=max_jobs)
+                    saved_files.extend(files)
+                except Exception as e:
+                    logger.error(f"Erro no scraping Vagas: {e}")
+
+            # LinkedIn Scraper
+            if platform in ("all", "linkedin"):
+                try:
+                    from src.ingestion.scrapers.linkedin import LinkedInScraper
+                    scraper = LinkedInScraper(browser)
+                    files = await scraper.run(query=query, max_jobs=max_jobs)
+                    saved_files.extend(files)
+                except Exception as e:
+                    logger.error(f"Erro no scraping LinkedIn: {e}")
+
+    except Exception as e:
+        logger.error(f"Erro ao iniciar navegador: {e}")
 
     logger.info(f"Bronze finalizada: {len(saved_files)} arquivos salvos")
     return saved_files
@@ -88,6 +112,8 @@ async def run_silver() -> int:
                 html,
                 url=data.get("url"),
                 platform=data.get("_metadata", {}).get("platform"),
+                title_hint=data.get("title"),
+                company_hint=data.get("company"),
             )
 
             # Salva na Silver
@@ -170,6 +196,13 @@ async def run_notify(platform: str = "all") -> int:
                 data = json.load(f)
 
             vaga = data.get("vaga", data)
+
+            # FILTRO: Apenas vagas REMOTAS
+            work_model = vaga.get("modelo_trabalho", "")
+            if work_model != "Remoto":
+                # Logger debug opcional para saber o que foi filtrado
+                # logger.debug(f"Ignorando vaga não-remota: {vaga.get('titulo_original')}")
+                continue
 
             # Extrai skills como lista de nomes
             skills = []
