@@ -25,38 +25,76 @@ logger = structlog.get_logger()
 SYSTEM_PROMPT = """Você é um especialista em extração de dados de vagas de emprego.
 Sua tarefa é analisar o HTML/texto de uma vaga e extrair informações estruturadas.
 
+CAMPOS OBRIGATÓRIOS (sempre retorne, nunca omita):
+- titulo_original: O título EXATO como aparece na vaga (obrigatório)
+- titulo_normalizado: Categoria padronizada (veja lista abaixo)
+- empresa: Nome da empresa
+- url: URL da vaga (se disponível)
+- modelo_trabalho: "Remoto", "Híbrido" ou "Presencial"
+
 REGRAS IMPORTANTES:
 1. NUNCA invente informações. Se não encontrar um dado, use null.
+2. O campo titulo_original é OBRIGATÓRIO - copie o título exatamente como está na vaga.
 
-2. TÍTULO NORMALIZADO - Use EXATAMENTE uma dessas categorias:
-   - "Data Engineer" (Engenheiro de Dados)
-   - "Data Analyst" (Analista de Dados)
-   - "Data Scientist" (Cientista de Dados)
-   - "Analytics Engineer" (Engenheiro de Analytics)
-   - "Machine Learning Engineer" (Engenheiro de ML)
-   - "BI Analyst" (Analista de BI)
-   - "Data Architect" (Arquiteto de Dados)
-   - "Outro" (se não se encaixar em nenhuma acima)
+3. TÍTULO NORMALIZADO - Use EXATAMENTE uma dessas categorias:
+   
+   "Data Engineer" - Para vagas de:
+     - Engenheiro de Dados, Engenheiro(a) de Dados, Pessoa Engenheira de Dados
+     - Data Engineer (qualquer nível), DE, Senior Data Engineer
+     - Data Platform Engineer, Pipeline Engineer
+   
+   "Data Analyst" - Para vagas de:
+     - Analista de Dados, Data Analyst, Pessoa Analista de Dados
+     - Analista de Dados Jr/Pleno/Senior
+   
+   "Data Scientist" - Para vagas de:
+     - Cientista de Dados, Data Scientist, Pessoa Cientista de Dados
+     - Research Scientist (quando foco em dados)
+   
+   "Analytics Engineer" - Para vagas de:
+     - Analytics Engineer, Engenheiro de Analytics
+     - dbt Developer, Transformation Engineer
+   
+   "Machine Learning Engineer" - Para vagas de:
+     - ML Engineer, Machine Learning Engineer, MLE
+     - MLOps Engineer, AI Engineer, Engenheiro de ML/IA
+     - Applied Scientist, Deep Learning Engineer
+   
+   "BI Analyst" - Para vagas de:
+     - Analista de BI, BI Analyst, Business Intelligence Analyst
+     - Analista de Business Intelligence
+   
+   "Data Architect" - Para vagas de:
+     - Arquiteto de Dados, Data Architect
+     - Solutions Architect (quando foco em dados)
+   
+   "Outro" - APENAS se não se encaixar em NENHUMA das categorias acima
+     Use "Outro" para: Backend, Frontend, DevOps, SRE, QA, Product Manager, etc.
 
-3. SENIORIDADE - Infira baseado em:
+4. SENIORIDADE - Infira baseado em:
    - Palavras-chave: "Jr", "Junior", "Pleno", "Senior", "Lead", "Staff", "Principal"
    - Anos de experiência: 0-2 = Junior, 2-5 = Pleno, 5+ = Senior
-   - Use: "Junior", "Pleno", "Senior", "Lead", "Staff" ou "Não Informada"
+   - Use: "Junior", "Pleno", "Senior", "Lead", "Staff", "Principal" ou "Não Informada"
 
-4. MODELO DE TRABALHO - Identifique corretamente:
+5. MODELO DE TRABALHO - Identifique corretamente:
    - "Remoto" = trabalho 100% remoto, home office, remote, anywhere
    - "Híbrido" = híbrido, presencial parcial, alguns dias no escritório
    - "Presencial" = presencial, on-site, no escritório
    - ATENÇÃO: Se mencionar "remoto" ou "100% remoto", use "Remoto"
 
-5. Para salários:
+6. LOCALIZAÇÃO - Extraia cidade e estado quando disponível:
+   - Formato: "Cidade, UF" (ex: "São Paulo, SP")
+   - Para remoto: use null ou "Remoto"
+   - Normalize estados para siglas (ex: "Minas Gerais" -> "MG")
+
+7. Para salários:
    - Converta tudo para base MENSAL
    - Se em USD, mantenha USD (não converta para BRL)
    - Separe salário base de bônus quando possível
 
-6. Para skills, retorne uma LISTA PLANA de strings (ex: ["Python", "SQL", "AWS"]).
+8. Para skills, retorne uma LISTA PLANA de strings (ex: ["Python", "SQL", "AWS"]).
 
-7. Para beneficios, retorne uma lista de strings. Se vazio, retorne [].
+9. Para beneficios, retorne uma lista de strings. Se vazio, retorne [].
 
 IMPORTANTE: Retorne APENAS o JSON válido, sem texto adicional."""
 
@@ -91,9 +129,18 @@ class GeminiClient(BaseLLMClient):
         self.types = types
         logger.info("Gemini client inicializado (novo SDK)", model=model)
 
-    async def extract(self, html_content: str) -> dict:
+    async def extract(self, html_content: str, title_hint: str = None, company_hint: str = None) -> dict:
         """Extrai dados usando Gemini (novo SDK)."""
+        
+        # Adiciona hints se disponíveis
+        hints = ""
+        if title_hint:
+            hints += f"\n- Título da vaga: {title_hint}"
+        if company_hint:
+            hints += f"\n- Empresa: {company_hint}"
+        
         prompt = f"""{SYSTEM_PROMPT}
+{hints if hints else ""}
 
 Analise esta vaga de emprego e extraia os dados estruturados:
 
@@ -101,7 +148,24 @@ Analise esta vaga de emprego e extraia os dados estruturados:
 {html_content}
 ---
 
-Retorne um JSON com os campos: vaga (VagaEmprego), confianca (float 0-1), campos_incertos (lista)."""
+Retorne um JSON EXATAMENTE neste formato:
+{{
+  "vaga": {{
+    "titulo_original": "Título exato da vaga como está no anúncio",
+    "titulo_normalizado": "Data Engineer|Data Analyst|Data Scientist|Analytics Engineer|Machine Learning Engineer|BI Analyst|Data Architect|Outro",
+    "empresa": "Nome da empresa",
+    "senioridade": "Junior|Pleno|Senior|Lead|Staff|Não Informada",
+    "modelo_trabalho": "Remoto|Híbrido|Presencial",
+    "localizacao": "Cidade, Estado ou null",
+    "skills": ["Python", "SQL", "etc"],
+    "salario": null,
+    "beneficios": [],
+    "descricao_resumida": "Resumo de 2-3 frases da vaga",
+    "url_origem": null
+  }},
+  "confianca": 0.9,
+  "campos_incertos": []
+}}"""
 
         response = await self.client.aio.models.generate_content(
             model=self.model_name,
@@ -205,10 +269,18 @@ class LLMExtractor:
         last_error = None
         for attempt in range(1, self.max_retries + 1):
             try:
-                raw_result = await self.client.extract(cleaned_text)
+                # Passa hints para clientes que suportam (Gemini)
+                if hasattr(self.client, 'extract') and 'title_hint' in self.client.extract.__code__.co_varnames:
+                    raw_result = await self.client.extract(cleaned_text, title_hint=title_hint, company_hint=company_hint)
+                else:
+                    raw_result = await self.client.extract(cleaned_text)
 
+                # Se retornou lista, pega o primeiro elemento
+                if isinstance(raw_result, list):
+                    raw_result = raw_result[0] if raw_result else {}
+                
                 # Heurística de correção: se o JSON for a vaga direta (sem wrapper)
-                if "vaga" not in raw_result and "titulo" in raw_result:
+                if "vaga" not in raw_result and ("titulo" in raw_result or "titulo_original" in raw_result or "titulo_normalizado" in raw_result):
                     raw_result = {
                         "vaga": raw_result,
                         "confianca": 0.8,
@@ -218,17 +290,25 @@ class LLMExtractor:
                 # Normalização de campos
                 vaga_dict = raw_result.get("vaga", raw_result)
                 
+                # Se vaga_dict também é lista
+                if isinstance(vaga_dict, list):
+                    vaga_dict = vaga_dict[0] if vaga_dict else {}
+                
                 # Mapeia titulo -> titulo_original
                 if "titulo" in vaga_dict and "titulo_original" not in vaga_dict:
                     vaga_dict["titulo_original"] = vaga_dict.pop("titulo")
+                
+                # Se titulo_original ainda não existe, usa o hint
+                if "titulo_original" not in vaga_dict or not vaga_dict.get("titulo_original"):
+                    vaga_dict["titulo_original"] = title_hint or "Título não informado"
                 
                 # Garante titulo_normalizado
                 if "titulo_normalizado" not in vaga_dict:
                      vaga_dict["titulo_normalizado"] = "Outro"
                      
-                # Garante empresa (se não vier no JSON, o hint lá embaixo preenche, mas precisa passar na validação se for obrigatório)
-                if "empresa" not in vaga_dict:
-                    vaga_dict["empresa"] = "Empresa Confidencial" # Placeholder, será substituído pelo hint
+                # Garante empresa (usa hint se disponível)
+                if "empresa" not in vaga_dict or not vaga_dict.get("empresa"):
+                    vaga_dict["empresa"] = company_hint or "Empresa Confidencial"
                 
                 # Garante senioridade
                 if "senioridade" not in vaga_dict or vaga_dict["senioridade"] is None:

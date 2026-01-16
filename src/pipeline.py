@@ -38,44 +38,104 @@ async def run_bronze(query: str, max_jobs: int, platform: str) -> list[str]:
     """Executa camada Bronze (scraping)."""
     logger.info("Iniciando camada Bronze", query=query, max_jobs=max_jobs, platform=platform)
 
-    from src.ingestion import BrowserManager
-    from src.ingestion.scrapers.gupy import GupyScraper
-    from src.ingestion.scrapers.vagas import VagasScraper
-
     saved_files = []
 
-    try:
-        async with BrowserManager(headless=True) as browser:
-            # Gupy Scraper
-            if platform in ("all", "gupy"):
-                try:
-                    scraper = GupyScraper(browser)
-                    files = await scraper.run(query=query, max_jobs=max_jobs)
-                    saved_files.extend(files)
-                except Exception as e:
-                    logger.error(f"Erro no scraping Gupy: {e}")
+    # =========================================================================
+    # SCRAPERS DE API (mais rápidos e confiáveis)
+    # =========================================================================
+    if platform in ("all", "api", "greenhouse", "lever", "smartrecruiters"):
+        try:
+            from src.ingestion.scrapers.api_scrapers import (
+                GreenhouseAPIScraper,
+                LeverAPIScraper,
+                SmartRecruitersAPIScraper,
+                GupyAPIScraper,
+            )
+            from src.config.companies import get_companies_by_ats, ATSType
 
-            # Vagas.com.br Scraper
-            if platform in ("all", "vagas"):
+            # Greenhouse (Nubank, Stone, XP, etc)
+            if platform in ("all", "api", "greenhouse"):
                 try:
-                    scraper = VagasScraper(browser)
-                    files = await scraper.run(query=query, max_jobs=max_jobs)
+                    scraper = GreenhouseAPIScraper()
+                    files = await scraper.run(query=query, max_jobs_per_company=max_jobs)
                     saved_files.extend(files)
+                    logger.info(f"Greenhouse: {len(files)} vagas coletadas")
                 except Exception as e:
-                    logger.error(f"Erro no scraping Vagas: {e}")
+                    logger.error(f"Erro no Greenhouse: {e}")
 
-            # LinkedIn Scraper
-            if platform in ("all", "linkedin"):
+            # Lever (Stripe, Figma, etc)
+            if platform in ("all", "api", "lever"):
                 try:
-                    from src.ingestion.scrapers.linkedin import LinkedInScraper
-                    scraper = LinkedInScraper(browser)
-                    files = await scraper.run(query=query, max_jobs=max_jobs)
+                    scraper = LeverAPIScraper()
+                    files = await scraper.run(query=query, max_jobs_per_company=max_jobs)
                     saved_files.extend(files)
+                    logger.info(f"Lever: {len(files)} vagas coletadas")
                 except Exception as e:
-                    logger.error(f"Erro no scraping LinkedIn: {e}")
+                    logger.error(f"Erro no Lever: {e}")
 
-    except Exception as e:
-        logger.error(f"Erro ao iniciar navegador: {e}")
+            # SmartRecruiters (Serasa, Keyrus)
+            if platform in ("all", "api", "smartrecruiters"):
+                try:
+                    scraper = SmartRecruitersAPIScraper()
+                    files = await scraper.run(query=query, max_jobs_per_company=max_jobs)
+                    saved_files.extend(files)
+                    logger.info(f"SmartRecruiters: {len(files)} vagas coletadas")
+                except Exception as e:
+                    logger.error(f"Erro no SmartRecruiters: {e}")
+
+            # Gupy API (Itaú, iFood, Magalu, etc)
+            if platform in ("all", "api", "gupy-api"):
+                try:
+                    scraper = GupyAPIScraper()
+                    files = await scraper.run(query=query, max_jobs_per_company=max_jobs)
+                    saved_files.extend(files)
+                    logger.info(f"Gupy API: {len(files)} vagas coletadas")
+                except Exception as e:
+                    logger.error(f"Erro no Gupy API: {e}")
+
+        except Exception as e:
+            logger.error(f"Erro nos scrapers de API: {e}")
+
+    # =========================================================================
+    # SCRAPERS DE NAVEGADOR (fallback, mais lentos)
+    # =========================================================================
+    if platform in ("gupy", "vagas", "linkedin"):
+        from src.ingestion import BrowserManager
+        from src.ingestion.scrapers.gupy import GupyScraper
+        from src.ingestion.scrapers.vagas import VagasScraper
+
+        try:
+            async with BrowserManager(headless=True) as browser:
+                # Gupy Scraper (navegador)
+                if platform == "gupy":
+                    try:
+                        scraper = GupyScraper(browser)
+                        files = await scraper.run(query=query, max_jobs=max_jobs)
+                        saved_files.extend(files)
+                    except Exception as e:
+                        logger.error(f"Erro no scraping Gupy: {e}")
+
+                # Vagas.com.br Scraper
+                if platform == "vagas":
+                    try:
+                        scraper = VagasScraper(browser)
+                        files = await scraper.run(query=query, max_jobs=max_jobs)
+                        saved_files.extend(files)
+                    except Exception as e:
+                        logger.error(f"Erro no scraping Vagas: {e}")
+
+                # LinkedIn Scraper
+                if platform == "linkedin":
+                    try:
+                        from src.ingestion.scrapers.linkedin import LinkedInScraper
+                        scraper = LinkedInScraper(browser)
+                        files = await scraper.run(query=query, max_jobs=max_jobs)
+                        saved_files.extend(files)
+                    except Exception as e:
+                        logger.error(f"Erro no scraping LinkedIn: {e}")
+
+        except Exception as e:
+            logger.error(f"Erro ao iniciar navegador: {e}")
 
     logger.info(f"Bronze finalizada: {len(saved_files)} arquivos salvos")
     return saved_files
@@ -104,16 +164,45 @@ async def run_silver() -> int:
             with open(json_file, encoding="utf-8") as f:
                 data = json.load(f)
 
+            # Normaliza diferentes formatos de dados bronze:
+            # 1. Browser scraper: {html, url, title, company, _metadata}
+            # 2. API scraper: {content/description, absolute_url/url, title/name, _metadata}
+            
+            metadata = data.get("_metadata", {})
+            
+            # Obtém HTML/conteúdo
             html = data.get("html", "")
             if not html:
+                # Formato API - monta HTML a partir dos campos
+                content = data.get("content", data.get("description", ""))
+                name = data.get("name", data.get("title", ""))
+                location = data.get("location", {})
+                loc_name = location.get("name", "") if isinstance(location, dict) else str(location)
+                
+                if content or name:
+                    # Cria um HTML mínimo para o LLM processar
+                    html = f"""
+                    <h1>{name}</h1>
+                    <p><strong>Localização:</strong> {loc_name}</p>
+                    <div>{content}</div>
+                    """
+            
+            if not html:
+                logger.debug(f"Sem conteúdo para processar: {json_file.name}")
                 continue
+
+            # Obtém hints
+            title_hint = data.get("title", data.get("name", ""))
+            company_hint = data.get("company", metadata.get("company", ""))
+            url = data.get("url", data.get("absolute_url", data.get("hostedUrl", "")))
+            platform = metadata.get("platform", data.get("platform", ""))
 
             result = await extractor.extract_from_html(
                 html,
-                url=data.get("url"),
-                platform=data.get("_metadata", {}).get("platform"),
-                title_hint=data.get("title"),
-                company_hint=data.get("company"),
+                url=url,
+                platform=platform,
+                title_hint=title_hint,
+                company_hint=company_hint,
             )
 
             # Salva na Silver
