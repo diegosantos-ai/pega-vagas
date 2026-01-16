@@ -60,6 +60,24 @@ TITLE_MAPPINGS = {
         r"arquiteto\(?a?\)?\s*(de\s+)?dados",
         r"pessoa\s+arquiteta?\s*(de\s+)?dados",
     ],
+    "Full Stack Developer": [
+        r"full[\s-]*stack",
+        r"desenvolvedor\(?a?\)?\s*(de\s+)?full[\s-]*stack",
+        r"pessoa\s+desenvolvedora?\s*full[\s-]*stack",
+        r"dev\s*full[\s-]*stack",
+        r"software\s*engineer\s*full[\s-]*stack",
+        r"engenheiro\(?a?\)?\s*(de\s+)?software\s*full[\s-]*stack",
+    ],
+    "Back End Developer": [
+        r"back[\s-]*end",
+        r"backend",
+        r"desenvolvedor\(?a?\)?\s*(de\s+)?back[\s-]*end",
+        r"pessoa\s+desenvolvedora?\s*back[\s-]*end",
+        r"dev\s*back[\s-]*end",
+        r"software\s*engineer\s*back[\s-]*end",
+        r"engenheiro\(?a?\)?\s*(de\s+)?software\s*back[\s-]*end",
+        r"desenvolvedor\(?a?\)?\s*backend",
+    ],
 }
 
 

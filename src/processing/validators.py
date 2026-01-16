@@ -4,9 +4,11 @@ Validador centralizado para vagas.
 Define regras de filtragem para:
 - Modalidade de trabalho (remoto vs presencial)
 - País/região da vaga (Brasil vs exterior)
+- Data de publicação (últimos X dias)
 """
 
 import re
+from datetime import datetime, timedelta
 from typing import Optional
 
 import structlog
@@ -198,7 +200,7 @@ def is_valid_job(job: dict, empresa_validada: bool = False) -> tuple[bool, str]:
         Tuple (é_válida, motivo_rejeição)
     """
     # Extrai campos relevantes
-    titulo = job.get("titulo_original", "") or job.get("title", "")
+    titulo = job.get("titulo_original", "") or job.get("title", "") or job.get("name", "")
     modelo = job.get("modelo_trabalho", "") or job.get("work_model", "")
     
     # Localidade pode ser dict ou string
@@ -212,12 +214,19 @@ def is_valid_job(job: dict, empresa_validada: bool = False) -> tuple[bool, str]:
         pais = ""
         loc_text = str(localidade) if localidade else ""
     
-    # Adiciona location de outras fontes
-    loc_text += " " + job.get("location", "")
-    loc_text += " " + job.get("location_name", "")
+    # Adiciona location de outras fontes (pode ser dict ou string)
+    location = job.get("location", "")
+    if isinstance(location, dict):
+        loc_text += " " + location.get("name", "")
+    elif location:
+        loc_text += " " + str(location)
+    
+    location_name = job.get("location_name", "")
+    if location_name:
+        loc_text += " " + str(location_name)
     
     # Descrição para análise adicional
-    descricao = job.get("descricao_resumida", "") or job.get("description", "")
+    descricao = job.get("descricao_resumida", "") or job.get("description", "") or job.get("html", "")
     
     # Texto combinado para análise
     full_text = f"{titulo} {loc_text} {descricao}"
@@ -276,3 +285,138 @@ def filter_jobs(jobs: list[dict], empresa_validada: bool = False) -> list[dict]:
     )
     
     return valid_jobs
+
+
+# =============================================================================
+# FILTRO DE DATA
+# =============================================================================
+
+def parse_date(date_value) -> Optional[datetime]:
+    """
+    Converte diferentes formatos de data para datetime.
+    
+    Args:
+        date_value: String ISO, datetime, ou timestamp
+        
+    Returns:
+        datetime ou None se não conseguir parsear
+    """
+    if date_value is None:
+        return None
+    
+    if isinstance(date_value, datetime):
+        return date_value
+    
+    if isinstance(date_value, (int, float)):
+        # Assume timestamp em segundos
+        try:
+            return datetime.fromtimestamp(date_value)
+        except (ValueError, OSError):
+            # Pode ser timestamp em milissegundos
+            return datetime.fromtimestamp(date_value / 1000)
+    
+    if isinstance(date_value, str):
+        # Tenta diferentes formatos
+        formats = [
+            "%Y-%m-%dT%H:%M:%S.%fZ",
+            "%Y-%m-%dT%H:%M:%SZ",
+            "%Y-%m-%dT%H:%M:%S.%f",
+            "%Y-%m-%dT%H:%M:%S",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d",
+            "%d/%m/%Y",
+            "%d-%m-%Y",
+        ]
+        for fmt in formats:
+            try:
+                return datetime.strptime(date_value, fmt)
+            except ValueError:
+                continue
+    
+    return None
+
+
+def is_recent_job(job: dict, days: int = 7) -> tuple[bool, str]:
+    """
+    Verifica se a vaga foi publicada nos últimos X dias.
+    
+    Args:
+        job: Dicionário com dados da vaga
+        days: Número de dias (7 para teste, 1 para produção)
+        
+    Returns:
+        Tuple (é_recente, motivo)
+    """
+    # Campos possíveis para data de publicação
+    date_fields = [
+        "data_publicacao",
+        "published_at",
+        "publishedAt",
+        "created_at",
+        "createdAt",
+        "posted_on",
+        "postedOn",
+        "date",
+        "updated_at",
+        "updatedAt",
+    ]
+    
+    pub_date = None
+    for field in date_fields:
+        if job.get(field):
+            pub_date = parse_date(job[field])
+            if pub_date:
+                break
+    
+    # Se não tem data, verifica no metadata
+    if not pub_date and job.get("_metadata"):
+        metadata = job["_metadata"]
+        for field in ["scraped_at", "collected_at"]:
+            if metadata.get(field):
+                pub_date = parse_date(metadata[field])
+                if pub_date:
+                    break
+    
+    # Se ainda não tem data, assume recente (benefício da dúvida)
+    if not pub_date:
+        logger.debug("Vaga sem data de publicação, assumindo recente")
+        return True, "Sem data (assumindo recente)"
+    
+    cutoff = datetime.now() - timedelta(days=days)
+    
+    if pub_date < cutoff:
+        return False, f"Vaga antiga ({pub_date.strftime('%Y-%m-%d')})"
+    
+    return True, f"Data válida ({pub_date.strftime('%Y-%m-%d')})"
+
+
+def is_valid_job_full(
+    job: dict,
+    empresa_validada: bool = False,
+    days: int = 7,
+    check_date: bool = True,
+) -> tuple[bool, str]:
+    """
+    Validação completa: remoto + Brasil + data.
+    
+    Args:
+        job: Dicionário com dados da vaga
+        empresa_validada: Se empresa está na lista validada
+        days: Período de dias para considerar recente
+        check_date: Se deve verificar data de publicação
+        
+    Returns:
+        Tuple (é_válida, motivo_rejeição)
+    """
+    # Primeiro verifica remoto e Brasil
+    is_valid, reason = is_valid_job(job, empresa_validada)
+    if not is_valid:
+        return False, reason
+    
+    # Depois verifica data
+    if check_date:
+        is_recent, date_reason = is_recent_job(job, days)
+        if not is_recent:
+            return False, date_reason
+    
+    return True, "OK"
