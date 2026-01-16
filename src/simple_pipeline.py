@@ -151,12 +151,12 @@ class SimplePipeline:
         
         try:
             async with httpx.AsyncClient(timeout=30) as client:
-                # API de busca geral da Gupy
-                url = "https://portal.api.gupy.io/api/job-search/v3/jobs"
+                # API de busca geral da Gupy (v1 é a que funciona!)
+                url = "https://portal.api.gupy.io/api/v1/jobs"
                 params = {
-                    "searchTerm": title,
+                    "jobName": title,  # Parâmetro correto para v1
                     "limit": 50,
-                    "workplaceType": "remote",  # Já filtra remoto na API
+                    "isRemoteWork": "true",  # Filtro de remoto para v1
                 }
                 
                 response = await client.get(url, params=params)
@@ -168,11 +168,11 @@ class SimplePipeline:
                     for job in jobs:
                         job["_metadata"] = {
                             "platform": "gupy",
-                            "company": job.get("companyName", ""),
+                            "company": job.get("careerPageName", ""),
                             "scraped_at": datetime.now().isoformat(),
                         }
                         job["title"] = job.get("name", "")
-                        job["company"] = job.get("companyName", "")
+                        job["company"] = job.get("careerPageName", "")
                         job["url"] = job.get("jobUrl", "")
                     
                     return jobs
@@ -247,7 +247,7 @@ class SimplePipeline:
                 job["_job_id"] = job_id
                 unique.append(job)
         
-        logger.info(f"Deduplicação: {len(jobs)} → {len(unique)}")
+        logger.info(f"Deduplicacao: {len(jobs)} -> {len(unique)}")
         return unique
     
     def filter_jobs(self, jobs: list[dict]) -> list[dict]:

@@ -1,3 +1,4 @@
+
 """
 CLI principal do pipeline Pega-Vagas.
 
@@ -7,6 +8,7 @@ Uso:
     python -m src.pipeline gold
     python -m src.pipeline run  # Executa tudo
 """
+from src.quality_gate import QualityGate
 
 import argparse
 import asyncio
@@ -293,7 +295,20 @@ async def run_notify(platform: str = "all") -> int:
                 # logger.debug(f"Ignorando vaga não-remota: {vaga.get('titulo_original')}")
                 continue
 
-            # Extrai skills como lista de nomes
+
+            # QualityGate: valida vaga antes de notificar
+            gate = QualityGate()
+            avaliacao = gate.evaluate({
+                "url": vaga.get("url_origem", ""),
+                "title": vaga.get("titulo_normalizado", vaga.get("titulo_original", "")),
+                "description": vaga.get("descricao", ""),
+                "company": vaga.get("empresa", ""),
+                "original_location": vaga.get("localidade", "")
+            })
+            if not (avaliacao.is_valid and avaliacao.score >= 40):
+                logger.info(f"Vaga descartada pelo QualityGate: {avaliacao.rejection_reason}")
+                continue
+
             skills = []
             if vaga.get("skills"):
                 skills = [s.get("nome", s) if isinstance(s, dict) else s for s in vaga["skills"][:5]]

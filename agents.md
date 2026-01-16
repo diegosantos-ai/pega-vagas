@@ -8,49 +8,116 @@ Este documento define regras e contexto para sessões futuras de desenvolvimento
 
 Coletar vagas de **Data Engineering** de empresas relevantes para o mercado brasileiro, com foco em oportunidades **100% remotas** para profissionais baseados no **Brasil**.
 
+**Títulos de vagas monitorados:**
+- Data Engineer / Engenheiro de Dados
+- Analista de Dados / Data Analyst
+- Cientista de Dados / Data Scientist
+
+---
+
+
+## 📁 Arquitetura Atual (Checkpoint 2026-01-16)
+
+### Pipeline Principal: `src/pipeline.py`
+
+Pipeline orquestrado em etapas:
+1. **Bronze**: Coleta vagas de APIs (Gupy, Greenhouse, etc)
+2. **Silver**: Processa e estrutura dados via LLM
+3. **QualityGate**: Filtra vagas não-remotas, links quebrados, irrelevantes (src/quality_gate.py)
+4. **Gold**: Carrega dados em DuckDB/Parquet
+5. **Notifica** via Telegram (apenas vagas aprovadas)
+
+```bash
+# Pipeline completo
+python -m src.pipeline run
+
+# Etapas isoladas
+python -m src.pipeline bronze --query "Data Engineer"
+python -m src.pipeline silver
+python -m src.pipeline gold
+python -m src.pipeline notify
+```
+
+### Fontes de Dados Funcionais
+
+| Fonte | Tipo | Status | Vagas/exec |
+|-------|------|--------|------------|
+| **Gupy API** | API v1 | ✅ Funcionando | ~10 |
+| **Greenhouse API** | API pública | ✅ Funcionando | ~125 |
+| Lever API | API pública | ❌ Quebrado (404) | 0 |
+| SmartRecruiters | API pública | ⚠️ Sem vagas | 0 |
+
+### APIs Descobertas
+
+**Gupy (FUNCIONA):**
+```python
+# API v1 - endpoint correto
+url = "https://portal.api.gupy.io/api/v1/jobs"
+params = {
+    "jobName": "Data Engineer",  # Termo de busca
+    "limit": 50,
+    "isRemoteWork": "true"  # Filtro de remoto
+}
+# Retorna JSON com data[]
+```
+
+**Gupy (NÃO FUNCIONA - deprecada):**
+```python
+# API v3 - NÃO USAR, retorna 404
+url = "https://portal.api.gupy.io/api/job-search/v3/jobs"  # QUEBRADA
+```
+
+**Greenhouse:**
+```python
+url = f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs"
+# Token = slug da empresa (ex: "quintoandar", "gympass")
+```
+
+
+### Estrutura de Diretórios
+
+```
+pega-vagas/
+├── src/
+│   ├── pipeline.py           # Pipeline principal (USE ESTE)
+│   ├── quality_gate.py       # QualityGate: filtro obrigatório
+│   ├── notifications/        # Telegram notifier
+│   ├── ingestion/            # Scrapers de API
+│   ├── config/               # Empresas e settings
+│   ├── processing/           # LLM extraction
+│   ├── analytics/            # DuckDB transforms
+│   └── schemas/              # Modelos Pydantic
+├── data/
+│   ├── bronze/               # Dados brutos
+│   ├── silver/               # Dados processados
+│   └── gold/                 # Star Schema/Parquet
+└── tests/                    # Testes automatizados
+```
+
 ---
 
 ## 📍 Definição: Modalidade REMOTA
 
 ### ✅ O que é considerado REMOTO (válido):
-- **100% Home Office** - trabalho totalmente remoto, sem exigência de presença física
-- **Remote First** - empresa prioriza remoto, escritório é opcional
-- **Anywhere in Brazil** - pode trabalhar de qualquer lugar do Brasil
-- **Full Remote** / **Fully Remote** - termos em inglês equivalentes
+- **100% Home Office** - trabalho totalmente remoto
+- **Remote First** - empresa prioriza remoto
+- **Anywhere in Brazil** - qualquer lugar do Brasil
+- **Full Remote** / **Fully Remote**
 
 ### ❌ O que NÃO é considerado REMOTO (inválido):
 - **Híbrido** - exige presença X dias por semana/mês
 - **Remote with occasional office visits** - não é 100% remoto
 - **Presencial com home office eventual** - não é remoto
-- **Remote (must be near office)** - exige proximidade física
 - **Flex** - geralmente significa híbrido
 
-### ⚠️ Casos que precisam análise:
-- "Remote (Brazil)" ✅ - ok, especifica o país
-- "Remote (Spain)" ❌ - remoto, mas para outro país
-- "Remote - São Paulo based" ⚠️ - pode exigir presença eventual
-- "Remote with quarterly meetups" ✅ - aceitável se meetups forem opcionais
-
-### Regex para detecção de REMOTO:
+### Regex de Filtragem (implementado em simple_pipeline.py):
 ```python
-REMOTE_POSITIVE = [
-    r"\b100%?\s*remoto\b",
-    r"\bfully\s*remote\b",
-    r"\bfull\s*remote\b",
-    r"\bremote\s*first\b",
-    r"\btrabalho\s*remoto\b",
-    r"\bhome\s*office\b",
-    r"\banywhere\b",
-    r"\bremoto\b(?!.*\b(h[íi]brido|presencial|escrit[óo]rio)\b)",
-]
-
 REMOTE_NEGATIVE = [
     r"\bh[íi]brido\b",
     r"\bhybrid\b",
     r"\bpresencial\b",
     r"\bon[\s-]?site\b",
-    r"\boffice\s*based\b",
-    r"\b\d+\s*(dias?|days?)\s*(no\s*)?(escrit[óo]rio|office)\b",
+    r"\b\d+\s*(dias?|days?)\s*(por\s*)?(semana|week|m[êe]s|month)",
 ]
 ```
 
@@ -58,108 +125,114 @@ REMOTE_NEGATIVE = [
 
 ## 🇧🇷 Definição: Empresa com Operação no BRASIL
 
-### ✅ O que é considerado EMPRESA BRASIL (válido):
-- Empresa com **CNPJ brasileiro** (matriz ou filial)
-- Contratação via **CLT** ou **PJ brasileiro**
-- Processo seletivo conduzido por **RH no Brasil** (mesmo que matriz seja gringa)
-- Pagamento em **BRL** (Reais)
-- Empresa multinacional com **escritório funcional no Brasil**
+### ✅ Empresas validadas (em `companies.py`):
+Todas as empresas listadas em `src/config/companies.py` já foram validadas como tendo operação no Brasil.
 
-### ❌ O que NÃO é considerado (inválido):
-- Empresa 100% estrangeira contratando como **contractor internacional**
-- Pagamento apenas em **USD/EUR** via Deel, Remote.com, etc.
-- Processo seletivo 100% em inglês sem menção ao Brasil
-- Vaga listada para outro país (Espanha, Portugal, EUA, etc.)
+### Empresas por ATS:
 
-### Como identificar na vaga:
-1. **Localização explícita**: "Brazil", "Brasil", "São Paulo", "Remote - Brazil"
-2. **Idioma**: Vaga em português geralmente é para Brasil
-3. **Moeda**: Salário em BRL indica Brasil
-4. **ATS da empresa**: Se empresa está na nossa lista, já validamos
+**GUPY (20 empresas):**
+BTG Pactual, C6 Bank, Banco Inter, PicPay, PagBank, Neon, Will Bank, iFood, Globo, TOTVS, RD Station, Magazine Luiza, Ambev, Localiza, Suzano, B3, Stefanini, Semantix, BHS
 
-### Empresas na lista `companies.py`:
-Todas as empresas configuradas em `src/config/companies.py` já foram validadas como tendo operação no Brasil. Vagas dessas empresas são automaticamente consideradas "Brasil válido".
+**GREENHOUSE (12 empresas - 7 funcionando):**
+- ✅ Funcionando: QuintoAndar, Gympass (Wellhub), Wildlife, ThoughtWorks, VTEX, Loft, Cloudwalk
+- ❌ Token errado: Creditas, Hotmart, Loggi, Neoway, CI&T
 
-### Empresas internacionais com Brasil:
-| Empresa | Status Brasil |
-|---------|---------------|
-| Nubank | ✅ Matriz BR |
-| Stone | ✅ Matriz BR |
-| iFood | ✅ Matriz BR |
-| Wildlife | ✅ Matriz BR |
-| ThoughtWorks | ✅ Escritório BR |
-| CI&T | ✅ Matriz BR |
-| Stripe | ⚠️ Verificar se vaga é p/ BR |
-| Vercel | ⚠️ Verificar se vaga é p/ BR |
-| Figma | ⚠️ Verificar se vaga é p/ BR |
+**LEVER (5 empresas - todas quebradas):**
+Nubank, Stone, PagSeguro, Movile, Olist - **Migraram de ATS**
 
 ---
 
-## 🔍 Regras de Filtragem
+## 🔧 Configuração
 
-### Na Ingestão (Bronze):
-```python
-# Gupy: usar filtro nativo
-params["workplaceType"] = "remote"
-
-# SmartRecruiters: já filtra por país
-params["country"] = "br"
-
-# Greenhouse/Lever: filtrar no pós-processamento
+### Variáveis de Ambiente (.env):
+```bash
+TELEGRAM_BOT_TOKEN=seu_token_aqui
+TELEGRAM_CHAT_ID=-1003574574884  # Grupo/canal de destino
 ```
 
-### Na Transformação (Silver):
-```python
-def is_valid_job(job: dict) -> bool:
-    """Valida se vaga atende critérios de remoto + Brasil."""
-    
-    # 1. Deve ser 100% remoto
-    if job.get("modelo_trabalho") != "Remoto":
-        return False
-    
-    # 2. Deve ser para Brasil
-    localidade = job.get("localidade", {})
-    pais = localidade.get("pais", "Brasil") if isinstance(localidade, dict) else "Brasil"
-    
-    if pais.lower() not in ["brasil", "brazil", "br"]:
-        return False
-    
-    # 3. Verificar se localização não indica outro país
-    location_text = str(localidade).lower()
-    invalid_countries = ["spain", "espanha", "portugal", "usa", "united states", "uk", "germany"]
-    if any(country in location_text for country in invalid_countries):
-        return False
-    
-    return True
+### Dependências principais:
+```
+httpx          # Requisições HTTP async
+structlog      # Logging estruturado
+python-dotenv  # Carregar .env
+playwright     # Browser automation (backup)
+tenacity       # Retry logic
 ```
 
-### Na Notificação:
-- Aplicar `is_valid_job()` antes de enviar
-- Logar vagas descartadas para análise
+---
+
+## 🐛 Problemas Conhecidos
+
+### 1. Links do Telegram podem dar erro
+**Sintoma:** Link clicável não abre a vaga
+**Causa provável:** Caracteres especiais na URL (=, ?) ou encoding
+**Investigação:** Testar com HTML vs Markdown no Telegram
+**Arquivo:** `src/notifications/telegram.py` - método `_format_job_message()`
+
+### 2. Greenhouse - 5 empresas com token errado
+**Empresas:** Creditas, Hotmart, Loggi, Neoway, CI&T
+**Causa:** Tokens em `companies.py` estão desatualizados
+**Solução:** Pesquisar tokens corretos nas páginas de carreira
+
+### 3. Lever API retorna 404
+**Causa:** Empresas migraram para outros ATS
+**Solução:** Remover ou atualizar essas empresas
+
+### 4. Gupy Browser Scraper - CAPTCHA
+**Causa:** Gupy detecta automação e mostra CAPTCHA
+**Solução:** Usar API v1 em vez de browser scraping
 
 ---
 
-## 📊 Métricas de Qualidade
+## 📊 Métricas de Execução (2026-01-16)
 
-Após implementar filtros, espera-se:
-- **0%** de vagas presenciais notificadas
-- **0%** de vagas de outros países notificadas
-- **100%** de vagas notificadas são remotas para Brasil
+```
+Total coletadas: 134
+- Gupy: 9
+- Greenhouse: 125
+
+Após deduplicação: 133
+Válidas (remoto+Brasil+data): 5
+Enviadas ao Telegram: 5
+
+Descartadas:
+- Não remoto (híbrido): 30
+- Título errado: 90
+- Outros países: 0
+- Antigas: 0
+```
 
 ---
 
-## 🔄 Atualizações
+## 🔄 Histórico de Alterações
 
 | Data | Alteração |
 |------|-----------|
 | 2026-01-16 | Criação inicial do documento |
+| 2026-01-16 | Corrigida API Gupy (v3→v1) |
+| 2026-01-16 | Checkpoint: Pipeline funcional com 5 vagas enviadas |
+| 2026-01-16 | Identificado problema de links no Telegram (em investigação) |
 
 ---
 
 ## 📝 Notas para o Agente
 
-1. **Sempre verificar** se vaga é remota E para Brasil antes de processar/notificar
-2. **Em caso de dúvida**, descartar a vaga (melhor perder uma válida do que notificar inválida)
-3. **Empresas da lista** `companies.py` são pré-validadas para Brasil
-4. **Vagas em português** têm maior probabilidade de serem para Brasil
-5. **Filtrar na fonte** sempre que a API permitir (mais eficiente)
+
+1. **Pipeline principal:** Use `src/pipeline.py` - orquestra todas as etapas
+2. **QualityGate:** Toda vaga passa por `src/quality_gate.py` antes de ser notificada
+3. **API Gupy:** Use `/api/v1/jobs` com `jobName` e `isRemoteWork`
+4. **Não usar browser scraping** para Gupy - causa CAPTCHA
+5. **Sempre testar** com `--dry-run` antes de enviar ao Telegram (se implementar)
+6. **Encoding:** Use `encoding='utf-8'` ao ler/escrever arquivos no Windows
+7. **Caracteres especiais:** Evitar → e outros Unicode em logs (problema CP1252)
+
+---
+
+## 🚀 Próximos Passos
+
+1. [ ] **Resolver links do Telegram** - investigar se é Markdown vs HTML
+2. [ ] **Corrigir tokens Greenhouse** - Creditas, Hotmart, Loggi, Neoway, CI&T
+3. [ ] **Expandir busca Gupy** - adicionar mais termos de busca
+4. [ ] **Agendar execução** - Task Scheduler ou cron
+5. [ ] **Monitoramento** - alertas se pipeline falhar
+6. [ ] **Aprimorar QualityGate** - ajustar score, regras e logging

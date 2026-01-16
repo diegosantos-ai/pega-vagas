@@ -1,14 +1,20 @@
+
 # 🎯 Pega-Vagas
 
-Pipeline de Engenharia de Dados para coleta e análise de vagas de tecnologia no Brasil.
+Pipeline de Engenharia de Dados para coleta, validação e notificação de vagas de tecnologia **100% remotas** para o Brasil.
 
 ## 📋 Visão Geral
 
-Este projeto implementa um pipeline completo de dados seguindo a arquitetura **Medallion** (Bronze/Silver/Gold):
+Pipeline automatizado para:
+- Coletar vagas de APIs (Gupy, Greenhouse, etc)
+- Filtrar por remoto, Brasil, título e qualidade (QualityGate)
+- Deduplicar e validar links
+- Notificar apenas vagas relevantes via Telegram
+
+Arquitetura baseada em **Medallion** (Bronze/Silver/Gold) + QualityGate:
 
 ```
-Web Scraping → HTML Bruto → Extração LLM → Star Schema → Análises
-  (Camoufox)     (Bronze)      (Silver)      (Gold)       (BI)
+API Scraping → Bronze (raw JSON) → Silver (LLM/validação) → QualityGate → Telegram
 ```
 
 ## 🚀 Quick Start
@@ -19,44 +25,57 @@ git clone https://github.com/seu-usuario/pega-vagas.git
 cd pega-vagas
 pip install -e ".[dev]"
 
-# 2. Instale o navegador
+# 2. Instale o navegador (opcional)
 playwright install firefox
 
-# 3. Configure
+# 3. Configure variáveis (.env)
 cp .env.example .env
-# Edite .env com suas chaves de API
+# Edite .env com suas chaves de API e Telegram
 
-# 4. Execute
+# 4. Execute pipeline completo
 python -m src.pipeline run
+
+# 5. (Opcional) Teste etapas isoladas
+python -m src.pipeline bronze --query "Data Engineer"
+python -m src.pipeline silver
+python -m src.pipeline gold
+python -m src.pipeline notify
 ```
 
-## 🛠️ Tecnologias
 
-| Componente | Tecnologia | Descrição |
-|------------|------------|-----------|
-| Scraping | Camoufox + Playwright | Navegador anti-detecção |
-| Extração | Gemini Flash / GPT-4o-mini | Estruturação semântica |
-| Validação | Pydantic | Type-safe schemas |
-| Processamento | DuckDB | OLAP local de alta performance |
-| Storage | Parquet | Formato colunar comprimido |
-| Orquestração | GitHub Actions | Execução diária serverless |
+## 🛠️ Tecnologias & Componentes
 
-## 📊 Arquitetura Medallion
+| Componente     | Tecnologia/Arquivo         | Descrição |
+|----------------|---------------------------|-----------|
+| Scraping       | API (Gupy, Greenhouse)    | Coleta rápida e confiável |
+| Validação      | QualityGate (src/quality_gate.py) | Filtra vagas não-remotas, links quebrados, baixa relevância |
+| Orquestração   | src/pipeline.py           | Pipeline principal (bronze/silver/gold/notify) |
+| Notificação    | Telegram Bot API          | Envio de vagas validadas |
+| Processamento  | DuckDB, Parquet           | OLAP local, exportação |
+| Logging        | structlog                 | Logs estruturados |
+| Configuração   | dotenv (.env)             | Tokens e segredos |
+
+
+## 📊 Arquitetura do Pipeline
 
 ### 🥉 Bronze (Raw)
-- HTML bruto das páginas
+- Dados brutos coletados das APIs (JSON)
 - Metadados de coleta
-- Formato: JSON Lines
 
-### 🥈 Silver (Cleansed)  
+### 🥈 Silver (LLM/Validação)
 - Dados estruturados via LLM
 - Validados por schema Pydantic
-- Formato: Parquet
+
+### 🛡️ QualityGate
+- Filtro de vagas não-remotas, links quebrados, irrelevantes
+- Implementado em src/quality_gate.py
 
 ### 🥇 Gold (Curated)
-- Star Schema dimensional
-- Views analíticas pré-calculadas
-- Formato: DuckDB + Parquet
+- Star Schema dimensional (DuckDB)
+- Exportação para Parquet
+
+### 📲 Notificação
+- Apenas vagas aprovadas pelo QualityGate são enviadas ao Telegram
 
 ## 📈 Análises Disponíveis
 
@@ -98,22 +117,27 @@ MAX_JOBS_PER_RUN=100
 - `PROXY_URL`: URL do proxy residencial
 - `ALERT_WEBHOOK_URL`: (opcional) Webhook para alertas
 
+
 ## 📁 Estrutura do Projeto
 
 ```
 pega-vagas/
 ├── src/
-│   ├── ingestion/      # Camada Bronze (scraping)
-│   ├── processing/     # Camada Silver (LLM)
-│   ├── analytics/      # Camada Gold (DuckDB)
-│   └── schemas/        # Modelos Pydantic
+│   ├── pipeline.py           # Pipeline principal (bronze/silver/gold/notify)
+│   ├── quality_gate.py       # QualityGate: filtro de vagas
+│   ├── notifications/        # Telegram notifier
+│   ├── ingestion/            # Scrapers de API
+│   ├── config/               # Empresas e settings
+│   ├── processing/           # LLM extraction
+│   ├── analytics/            # DuckDB transforms
+│   └── schemas/              # Modelos Pydantic
 ├── data/
-│   ├── bronze/         # HTML bruto
-│   ├── silver/         # Dados limpos
-│   └── gold/           # Star Schema
-├── .github/workflows/  # Orquestração
-└── tests/              # Testes automatizados
+│   ├── bronze/               # Dados brutos
+│   ├── silver/               # Dados processados
+│   └── gold/                 # Star Schema/Parquet
+└── tests/                    # Testes automatizados
 ```
+
 
 ## ⚖️ Conformidade LGPD
 
@@ -132,3 +156,10 @@ MIT License - veja [LICENSE](LICENSE) para detalhes.
 ---
 
 Desenvolvido com ❤️ para a comunidade de dados brasileira.
+
+---
+
+### ℹ️ Observações
+- O QualityGate bloqueia vagas híbridas, links quebrados, títulos irrelevantes e oportunidades fora do Brasil.
+- Só vagas 100% remotas e relevantes chegam ao Telegram.
+- Veja agents.md para regras detalhadas de filtragem.

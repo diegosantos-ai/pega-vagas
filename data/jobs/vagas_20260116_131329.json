@@ -1,0 +1,177 @@
+{
+  "collected_at": "2026-01-16T13:13:30.000139",
+  "mode": "test",
+  "days_filter": 7,
+  "total_jobs": 5,
+  "jobs": [
+    {
+      "id": 9438526,
+      "companyId": 345,
+      "name": "Lead Data Engineer - Vila Velha/ES",
+      "description": "Olá! :DBuscamos um profissional para liderar o time de Data Engineer (DataOps) da Autoglass Tech!&nbsp;&nbsp;Esse profissional possui o compromisso de garantir a entrega contínua, confiável e automatizada de dados para consumo analítico e operacional, liderando a equipe técnica e promovendo integração entre engenharia de dados, governança de dados e áreas de negócio.&nbsp;Também será responsável por liderar o uso de novas tecnologias e otimização do data lakehouse.Aqui você também irá trabalhar com as maiores clouds do mercado (AWS, GCP, Oracle, Snowflake) e também com tecnologias de ponta 😉Que tal gerir a equipe, cultivar e desenvolver nossos profissionais de dados?Curtiu o desafio?! Venha fazer história conosco 🚀Responsabilidades e atribuiçõesGerir equipes de Engenharia de Dados e DataOps;Elaborar planos de desenvolvimento individual e garantir o desenvolvimento individual e coletivo da equipe;Fornecer feedback's e gerenciar conflitos;Estruturar plano de trabalho para utilização de tecnologias dentro do contexto do data lakehouse;Liderar iniciativas e projetos relacionados a plataforma de dados;Buscar estratégias para otimizar custos de cloud da plataforma de dados;Apoiar na construção das soluções da área;Garantir a aplicação das metodologias ágeis dentro dos times;Ser um elo de comunicação entre as áreas de negócio e a TI.Requisitos e qualificaçõesEnsino superior completo ou em andamento;Experiência com: AWS ou outra cloud;Experiência com DataOps;Linguagem SQL;Experiência com Snowflake ou Bigquery;&nbsp;Linguagem de programação como Python, Java ou Scala;Conhecimento de bancos de dados relacionais e não relacionais;Spark.Valorizamos se você tiver:Participado de projetos de construção de data lake;Conhecimento com liderança de equipe.Informações adicionaisO que&nbsp;a Autoglass&nbsp;proporciona?&nbsp;&nbsp;Pra cuidar da sua saúde física e mental:&nbsp;🩺&nbsp;Plano de saúde&nbsp;Unimed e Plano odontológico&nbsp;Bradesco, extensivos a seus dependentes;&nbsp;💙&nbsp;Atendimento psicológico e nutricional;&nbsp;💙&nbsp;Seguro de vida;&nbsp;💙&nbsp;Programa da Gestante com licença maternidade estendida;&nbsp;💙&nbsp;Espaço Cuidar - Salão de beleza;&nbsp;🏋️‍♀️&nbsp;Wellhub&nbsp;(desconto em academias);💆&nbsp;&nbsp;Para&nbsp;tornar o seu dia mais leve, na&nbsp;Autoglass&nbsp;você recebe massagem relaxante em seu posto de trabalho.&nbsp;&nbsp;&nbsp;Pra apoiar seu dia a dia:&nbsp;🚌&nbsp;Vale transporte;&nbsp;🛒&nbsp;Vale Refeição e Alimentação (Cartão Ifood Benefícios);&nbsp;📚&nbsp;Descontos em creches e escolas para os papais&nbsp;e mamães;&nbsp;📚&nbsp;Descontos em Instituições de Ensino;&nbsp;☕ Café da manhã e da tarde;😎 Oportunidade de trabalhar e trocar conhecimentos diários com um time incrível e acolhedor;&nbsp;🏠 Oportunidades&nbsp;Home Office;&nbsp;💺 Trabalho de modo confortável! Caso necessário, enviaremos toda mobília para&nbsp;equipar o seu ambiente Home Office;&nbsp;👥 Programa Indica Tech - bônus por indicar novos talentos para fazerem parte do time.&nbsp;&nbsp;Pra desenvolver sua carreira:&nbsp;🚀&nbsp;Oportunidade de crescimento profissional;🚀 Acesso ao Portal de Educação Corporativa Grupo Autoglass com mais de 200 cursos gratuitos e com emissão de certificado;🚀&nbsp;Treinamentos e programas de mentorias frequentes;&nbsp;🚀&nbsp;Acesso GRATUITO e EXCLUSIVO à plataforma&nbsp;Alura ou Udemy;&nbsp;🚀&nbsp;Programa de Incentivo à Certificação;&nbsp;🚀 Um&nbsp;ambiente de trabalho altamente colaborativo e desafiador.No Grupo Autoglass, você encontrará oportunidade de crescimento e uma cultura de inovação e melhoria contínua muito forte.&nbsp;",
+      "careerPageId": 38719,
+      "careerPageName": "Grupo Autoglass Tech",
+      "careerPageLogo": "https://attachments.gupy.io/production/companies/345/career/38719/images/2024-03-25_14-42_companyLogoUrl.png",
+      "type": "vacancy_type_effective",
+      "publishedDate": "2025-07-09T17:00:45.224Z",
+      "applicationDeadline": "2026-02-28T00:00:00.000Z",
+      "isRemoteWork": true,
+      "city": "",
+      "state": "",
+      "country": "Brasil",
+      "jobUrl": "https://autoglasstech.gupy.io/job/eyJqb2JJZCI6OTQzODUyNiwic291cmNlIjoiZ3VweV9wb3J0YWwifQ==?jobBoardSource=gupy_portal",
+      "badges": {
+        "friendlyBadge": true
+      },
+      "disabilities": true,
+      "workplaceType": "remote",
+      "careerPageUrl": "https://autoglasstech.gupy.io/eyJzb3VyY2UiOiJndXB5X3BvcnRhbCJ9",
+      "_metadata": {
+        "platform": "gupy",
+        "company": "Grupo Autoglass Tech",
+        "scraped_at": "2026-01-16T13:13:09.582902"
+      },
+      "title": "Lead Data Engineer - Vila Velha/ES",
+      "company": "Grupo Autoglass Tech",
+      "url": "https://autoglasstech.gupy.io/job/eyJqb2JJZCI6OTQzODUyNiwic291cmNlIjoiZ3VweV9wb3J0YWwifQ==?jobBoardSource=gupy_portal",
+      "_job_id": "gupy:grupo_autoglass_tech:lead_data_engineer_-_vila_velh:9438526",
+      "titulo_normalizado": "Data Engineer",
+      "senioridade": "Lead"
+    },
+    {
+      "id": 949803,
+      "companyId": 1243,
+      "name": "Analista de Dados",
+      "description": "Vaga para nosso BANCO DE TALENTOSSomos inquietos, somos desbravadores e estamos em constante transformação.Por isso, estamos na busca constante de crescimentos do nosso time com profissionais inovadores, que desafiam os limites e estejam preparados para embarcar em uma cultura totalmente nômade.SOMOS NÔMADES, NOSSAS VAGAS SÃO PARA QUALQUER LUGAR!Seja qual for o seu gênero, orientação sexual, idade, raça, etnia, crença ou deficiência, todos são bem-vindos no nosso time.Responsabilidades e atribuiçõesO analista de dados é responsável por realizar a verificação de cenários e o diagnósticos de marcas nos canais digitais a partir de dados e do monitoramento. É responsável por traduzir os dados em análises, fatos e insights que servem de insumos e orientação para os demais times envolvidos. Identifica padrões de comportamento, necessidades e expectativas, percepções de públicos, identificação de oportunidades de comunicação e de negócio.Requisitos e qualificaçõesTer habilidades analíticas;Tenha conhecimento no pacote office;Graduado em Comunicação Social, Publicidade ou Administração;Domínio de redes sociais e canais digitais;Conhecimento em softwares de métricas;Domínio de Google Analytics;Conhecimento em ferramentas de monitoramento;Muita vontade para desbravar.Diferenciais:Conhecimento em Data Studio;Conhecimento em Google Tag Manager.Informações adicionaisOs desbravadores tem:Horário flexível, aqui você é responsável por se organizar;Cultura ágil, aqui todos os desbravadores utilizam metodologias ágeis no dia a dia;No dress code, seja 100% você;Vale transporte;Vale refeição ou alimentação FLEX;Gympass;Plano odontológico Bradesco;Plano de saúde Amil;Seguro de vida;Bem estar psicológico gratuito;Brivia Academy, treinamentos para aperfeiçoamento;Bônus salarial;Associação e descontos na&nbsp;ANAMID;E o melhor de todos: trabalhe de onde você quiser, somos nômades e estamos 100% em home office!",
+      "careerPageId": 9448,
+      "careerPageName": "Brivia",
+      "careerPageLogo": "https://attachments.gupy.io/production/companies/1243/career/9448/images/2022-03-21_12-58_logo.png",
+      "type": "vacancy_type_talent_pool",
+      "publishedDate": "2021-06-08T22:07:12.000Z",
+      "applicationDeadline": null,
+      "isRemoteWork": true,
+      "city": "Rio de Janeiro",
+      "state": "Rio de Janeiro",
+      "country": "Brasil",
+      "jobUrl": "https://brivia.gupy.io/job/eyJqb2JJZCI6OTQ5ODAzLCJzb3VyY2UiOiJndXB5X3BvcnRhbCJ9?jobBoardSource=gupy_portal",
+      "badges": {
+        "friendlyBadge": false
+      },
+      "disabilities": true,
+      "workplaceType": "remote",
+      "careerPageUrl": "https://brivia.gupy.io/eyJzb3VyY2UiOiJndXB5X3BvcnRhbCJ9",
+      "_metadata": {
+        "platform": "gupy",
+        "company": "Brivia",
+        "scraped_at": "2026-01-16T13:13:10.397263"
+      },
+      "title": "Analista de Dados",
+      "company": "Brivia",
+      "url": "https://brivia.gupy.io/job/eyJqb2JJZCI6OTQ5ODAzLCJzb3VyY2UiOiJndXB5X3BvcnRhbCJ9?jobBoardSource=gupy_portal",
+      "_job_id": "gupy:brivia:analista_de_dados:949803",
+      "titulo_normalizado": "Data Analyst",
+      "senioridade": "Não Informada"
+    },
+    {
+      "id": 939391,
+      "companyId": 4823,
+      "name": "Banco de Talentos - Analista de Dados/ Analista de BI ou Cientista de Dados",
+      "description": "Buscamos pessoas que sejam apaixonadas por construir aplicações distribuídas e de alta performance, escaláveis para milhões de novos usuários em todo estado do espirito santo e que suportem a melhor experiência.Somos um dos melhores lugares para se trabalhar no ES, te proporcionando atuar desde das tecnologia legada e novas tecnologia.Responsabilidades e atribuiçõesAnalise e validação de dados coletadosResponsável pela visualização de dadosBoa capacidade analítica;Requisitos e qualificaçõesConhecimento avançado em postgreSQL;Conhecimentos avançados em Estatística;Conhecimentos em Excel ( Power Query, modelagem de dados, Tabelas dinâmicas);Conhecimento em Datastudio e TableauConhecimento em arquitetura de projetos em BIExperiência com&nbsp;linguagem de SQLSólida experiência em bancos de dados SQL&nbsp;Serve&nbsp;Experiência em processos de ETL, bem como criação de indicadores de negócio.PentahoBusiness IntelligenceInformações adicionaisBenefícios e vantagens:⏰ Horário comercial, 8h diárias, Segunda a Sexta&nbsp;🎒 Trabalho 100% remoto;&nbsp;&nbsp;&nbsp;💵 Bônus por indicação de até R$300,00 Reais&nbsp;💡Bônus para Capacitação Anual&nbsp;&nbsp;💡Bônus para renda extra em caso de venda de serviços para clientes de sua região.&nbsp;👩‍💻 Acesso liberado a plataforma de cursos online (Alura)&nbsp;⌚ Horário flexível&nbsp;🏢 Ambiente descontraído e colaborativo&nbsp;🍻 Happy Hours e Confraternizações (pelo menos mensais) - Após pandemiaCONTRATO CLT OU PJ",
+      "careerPageId": 10902,
+      "careerPageName": "Globalsys Soluções em TI",
+      "careerPageLogo": "https://attachments.gupy.io/production/companies/4823/career/10902/images/2021-06-01_15-18_logo.png",
+      "type": "vacancy_type_talent_pool",
+      "publishedDate": "2021-06-04T13:31:54.000Z",
+      "applicationDeadline": null,
+      "isRemoteWork": true,
+      "city": "",
+      "state": "",
+      "country": "Brasil",
+      "jobUrl": "https://queroserglobalsys.gupy.io/job/eyJqb2JJZCI6OTM5MzkxLCJzb3VyY2UiOiJndXB5X3BvcnRhbCJ9?jobBoardSource=gupy_portal",
+      "badges": {
+        "friendlyBadge": false
+      },
+      "disabilities": true,
+      "careerPageUrl": "https://queroserglobalsys.gupy.io/eyJzb3VyY2UiOiJndXB5X3BvcnRhbCJ9",
+      "_metadata": {
+        "platform": "gupy",
+        "company": "Globalsys Soluções em TI",
+        "scraped_at": "2026-01-16T13:13:10.397265"
+      },
+      "title": "Banco de Talentos - Analista de Dados/ Analista de BI ou Cientista de Dados",
+      "company": "Globalsys Soluções em TI",
+      "url": "https://queroserglobalsys.gupy.io/job/eyJqb2JJZCI6OTM5MzkxLCJzb3VyY2UiOiJndXB5X3BvcnRhbCJ9?jobBoardSource=gupy_portal",
+      "_job_id": "gupy:globalsys_soluções_em_ti:banco_de_talentos_-_analista_d:939391",
+      "titulo_normalizado": "Data Scientist",
+      "senioridade": "Não Informada"
+    },
+    {
+      "id": 9741353,
+      "companyId": 17527,
+      "name": "Cientista de Dados | AWS | Python | Machine Learning | Home-Office",
+      "description": "UTILIZE A SUA PAIXÃO POR TECNOLOGIA PARA CAUSAR IMPACTO POSITIVO E #VemSerLuminiITAqui na Lumini IT a inovação e a resiliência fazem parte da nossa rotina.Somos uma empresa de soluções de TI que preza pela qualidade e agilidade na entrega de seus serviços.O nosso grande segredo para estar sempre um passo à frente do mercado é a audácia e a transformação que cada LUMINER promove todos os dias.Nossa integridade nos impulsiona e, o melhor, todo mundo colabora com todo mundo, não importa quem deu a ideia, somos uma empresa de estratégia horizontal, todas as pessoas estão dispostas a ajudar e se envolvem legitimamente para fazer dar certo e entregar resultados.Curtiu? Inscreva-se na vaga!Responsabilidades e atribuiçõesCientista de dados para atuar em uma equipe multidisciplinar focada em consultoria para novos clientes, com o objetivo de entrega de valor em projetos curtos de ML e GenIA, principalmente PoCs (Provas de Conceito) e prototipação.Requisitos e qualificaçõesExperiência em entregas de projetos de machine learning produtivos, mas que tenham interesse também em atuar em desafios multidisciplinares em dados e nuvem AWS;Comunicação com stakeholders do cliente e tradução de desafios de negócio para soluções baseadas em Inteligência Artificial;Análise e modelagem de dados para Machine Learning;Treinamento e avaliação modelos de Machine Learning e LLM customizados;Desenvolvimento de soluções com ferramentas SaaS de Machine Learning e Generative AI da AWS;Implantar pipelines de MLOps em ambientes produtivos;Conhecimento em ferramentas de dados AWS, principalmente bedrock;Conhecimento em Python e bibliotecas.Informações adicionaisModalidade de Trabalho: 100% Home Office;Contratação: CLT;Horário de Atuação: Horário comercial.Benefícios: Cartão Flex - Vale refeição ou alimentação (R$33,25/dia);Vale Refeição ou alimentação nas férias;Auxílio-creche (Por mês: R$ 646,00 até 2 anos; R$ 565,25 até 6 anos; R$ 807,50 para filhos abrangidos em pessoa com deficiência);Vale Transporte (único benefício com desconto, 6% obrigatório por lei);OU Auxílio estacionamento (R$ 150,00/mês) para quem atua em vagas presenciais ou híbridas;Assistência Odontológica – Porto Seguro – 100% custeado pela empresa;Assistência médica – Porto Seguro – com coparticipação;Totalpass;Day-Off de aniversário;Bonificação de aniversário;Seguro de Vida;Assistência Funeral;Parcerias com Universidades (FIAP, UNIP);Bônus por alcance de metas (conforme regras especificas da empresa, divulgadas anualmente).Importante: Nós valorizamos a diversidade e inclusão, consideramos todos os candidatos para as nossas vagas, independente de cor, raça, religião, gênero e identidade de gênero, nacionalidade, deficiência, orientação sexual, ascendência, idade, etc.",
+      "careerPageId": 40930,
+      "careerPageName": "Lumini IT Solutions",
+      "careerPageLogo": "https://attachments.gupy.io/production/companies/17527/career/40930/images/2021-12-27_20-10_logo.png",
+      "type": "vacancy_type_effective",
+      "publishedDate": "2025-08-22T20:29:25.205Z",
+      "applicationDeadline": "2026-10-21T00:00:00.000Z",
+      "isRemoteWork": true,
+      "city": "",
+      "state": "",
+      "country": "Brasil",
+      "jobUrl": "https://luminiitsolutions.gupy.io/job/eyJqb2JJZCI6OTc0MTM1Mywic291cmNlIjoiZ3VweV9wb3J0YWwifQ==?jobBoardSource=gupy_portal",
+      "badges": {
+        "friendlyBadge": true
+      },
+      "disabilities": false,
+      "workplaceType": "remote",
+      "careerPageUrl": "https://luminiitsolutions.gupy.io/eyJzb3VyY2UiOiJndXB5X3BvcnRhbCJ9",
+      "_metadata": {
+        "platform": "gupy",
+        "company": "Lumini IT Solutions",
+        "scraped_at": "2026-01-16T13:13:11.200478"
+      },
+      "title": "Cientista de Dados | AWS | Python | Machine Learning | Home-Office",
+      "company": "Lumini IT Solutions",
+      "url": "https://luminiitsolutions.gupy.io/job/eyJqb2JJZCI6OTc0MTM1Mywic291cmNlIjoiZ3VweV9wb3J0YWwifQ==?jobBoardSource=gupy_portal",
+      "_job_id": "gupy:lumini_it_solutions:cientista_de_dados_|_aws_|_pyt:9741353",
+      "titulo_normalizado": "Data Scientist",
+      "senioridade": "Não Informada"
+    },
+    {
+      "id": 941110,
+      "companyId": 1243,
+      "name": "Cientista de Dados",
+      "description": "Vaga para nosso BANCO DE TALENTOSProcuramos Cientista de Dados, que apoiem o crescimento da empresa e proponham KPIs de sucesso e seu acompanhamento. Trabalhamos com grandes volumes de dados e transformamos em informação de performance minuto a minuto. A melhoria contínua do produto é o nosso principal objetivo, além de entender como podemos agregar cada vez mais ao mercado financeiro.Você deve ser capaz de trabalhar&nbsp;com grandes volumes de dados&nbsp;em real time e&nbsp;criar análises e visualizações estruturadas&nbsp;a partir deles (planilhas já não nos atendem mais).Somos inquietos, somos desbravadores e estamos em constante transformação.Por isso, estamos na busca constante de crescimentos do nosso time com profissionais inovadores, que desafiam os limites e estejam preparados para embarcar em uma cultura totalmente nômade.SOMOS NÔMADES, NOSSAS VAGAS SÃO PARA QUALQUER LUGAR!Seja qual for o seu gênero, orientação sexual, idade, raça, etnia, crença ou deficiência, todos são bem-vindos no nosso time.Responsabilidades e atribuiçõesFornecer relatórios e dashboards operacionais e financeiros para níveis executivos, clientes e gestão interna;Participar da construção de metas e KPIs da empresa;Estar apto a&nbsp;transformar&nbsp;a área de relatórios gerenciais, com implantação de novas ferramentas como ERP;Alta capacidade em análise e manipulação de base de dados de B.I.;Aplicar as técnicas em ciência de dados para a resolução de problemas complexos de negócio, sempre orientado aos resultados mais relevantes para a companhia;Buscar&nbsp;melhorias nos processos&nbsp;de Business Intelligence e Big Data da empresa, garantindo a aplicação de melhores práticas e atualizando os processos internos.Requisitos e qualificaçõesConhecimento em linguagem de programação Phyton, R ou Scala;Conhecimento em SQL e NoSQL;﻿Graduação em andamento/completa em Matemática, Estatística ou áreas correlatadas;Muita vontade para desbravar.Informações adicionaisOs desbravadores tem:Horário flexível, aqui você é responsável por se organizar;Cultura ágil, aqui todos os desbravadores utilizam metodologias ágeis no dia a dia;No dress code, seja 100% você;Vale transporte;Vale refeição ou alimentação FLEX;Gympass;Plano odontológico Bradesco;Plano de saúde Amil;Seguro de vida Metlife;Bem estar psicológico gratuito;Brivia Academy, treinamentos para aperfeiçoamento;Bônus salarial;Associação e descontos na&nbsp;ANAMID;E o melhor de todos: trabalhe de onde você quiser, somos nômades e estamos 100% em home office!",
+      "careerPageId": 9448,
+      "careerPageName": "Brivia",
+      "careerPageLogo": "https://attachments.gupy.io/production/companies/1243/career/9448/images/2022-03-21_12-58_logo.png",
+      "type": "vacancy_type_talent_pool",
+      "publishedDate": "2021-06-04T22:19:29.000Z",
+      "applicationDeadline": null,
+      "isRemoteWork": true,
+      "city": "Florianópolis",
+      "state": "Santa Catarina",
+      "country": "Brasil",
+      "jobUrl": "https://brivia.gupy.io/job/eyJqb2JJZCI6OTQxMTEwLCJzb3VyY2UiOiJndXB5X3BvcnRhbCJ9?jobBoardSource=gupy_portal",
+      "badges": {
+        "friendlyBadge": false
+      },
+      "disabilities": true,
+      "workplaceType": "remote",
+      "careerPageUrl": "https://brivia.gupy.io/eyJzb3VyY2UiOiJndXB5X3BvcnRhbCJ9",
+      "_metadata": {
+        "platform": "gupy",
+        "company": "Brivia",
+        "scraped_at": "2026-01-16T13:13:11.200497"
+      },
+      "title": "Cientista de Dados",
+      "company": "Brivia",
+      "url": "https://brivia.gupy.io/job/eyJqb2JJZCI6OTQxMTEwLCJzb3VyY2UiOiJndXB5X3BvcnRhbCJ9?jobBoardSource=gupy_portal",
+      "_job_id": "gupy:brivia:cientista_de_dados:941110",
+      "titulo_normalizado": "Data Scientist",
+      "senioridade": "Não Informada"
+    }
+  ]
+}

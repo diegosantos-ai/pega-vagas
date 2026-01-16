@@ -159,8 +159,8 @@ class GupyAPIScraper(BaseAPIScraper):
     platform_name = "gupy"
     ats_type = ATSType.GUPY
 
-    # URL alternativa que funciona sem companyId
-    API_URL = "https://portal.api.gupy.io/api/job-search/v3/jobs"
+    # API v1 funciona para busca geral
+    API_URL = "https://portal.api.gupy.io/api/v1/jobs"
     COMPANY_API_URL = "https://{company}.gupy.io/api/jobs"
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
