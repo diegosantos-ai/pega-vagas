@@ -1,9 +1,11 @@
-name: Daily Job Scraping Pipeline
+name: Job Scraping Pipeline - Every 3 Hours
 
 on:
-  # Execução agendada: 8h UTC = 5h BRT (horário de Brasília)
+  # Execução agendada: a cada 3 horas
+  # 0 0,3,6,9,12,15,18,21 * * * = 00:00, 03:00, 06:00, 09:00, 12:00, 15:00, 18:00, 21:00 UTC
+  # Convertendo para BRT (UTC-3): 21:00, 00:00, 03:00, 06:00, 09:00, 12:00, 15:00, 18:00 BRT
   schedule:
-    - cron: '0 8 * * *'  # Às 05h horário de Brasília
+    - cron: '0 0,3,6,9,12,15,18,21 * * *'  # A cada 3 horas em UTC
   
   # Permite execução manual
   workflow_dispatch:
@@ -15,10 +17,15 @@ on:
       max_jobs:
         description: 'Número máximo de vagas'
         required: false
-        default: '50'
+        default: '100'
+      dry_run:
+        description: 'Modo dry-run (sem enviar notificações)'
+        required: false
+        default: 'false'
 
 env:
   PYTHON_VERSION: '3.11'
+  TZ: 'America/Sao_Paulo'
 
 jobs:
   scrape-and-process:
@@ -48,17 +55,20 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
+          pip install pyyaml  # Para carregar config.yaml
           playwright install firefox
 
-      # 5. Executa scraping (Bronze)
+      # 5. Executa scraping (Bronze) - Múltiplos termos
       - name: Run Bronze Layer (Scraping)
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           PROXY_URL: ${{ secrets.PROXY_URL }}
         run: |
-          python -m src.pipeline bronze \
-            --query "${{ github.event.inputs.query || 'Data Engineer' }}" \
-            --max-jobs ${{ github.event.inputs.max_jobs || '50' }}
+          # Busca por múltiplos termos para aumentar volume
+          python -m src.pipeline bronze --query "Data Engineer" --max-jobs 50
+          python -m src.pipeline bronze --query "Automation Engineer" --max-jobs 30
+          python -m src.pipeline bronze --query "AI Engineer" --max-jobs 30
+          python -m src.pipeline bronze --query "Data Analyst" --max-jobs 30
         continue-on-error: true
 
       # 6. Executa processamento LLM (Silver)
@@ -73,11 +83,13 @@ jobs:
       - name: Run Gold Layer (DuckDB Transform)
         run: |
           python -m src.pipeline gold
+        continue-on-error: true
 
       # 8. Exporta para Parquet
       - name: Export to Parquet
         run: |
           python -m src.pipeline export
+        continue-on-error: true
 
       # 9. Envia notificações Telegram
       - name: Send Telegram Notifications
@@ -85,11 +97,16 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
+          # Modo dry-run se especificado
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "DRY_RUN=true" >> $GITHUB_ENV
+          fi
           python -m src.pipeline notify
         continue-on-error: true
 
       # 10. Upload de artefatos (para debug)
       - name: Upload Bronze artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: bronze-data-${{ github.run_number }}
@@ -98,35 +115,43 @@ jobs:
 
       # 11. Upload de dados processados
       - name: Upload Gold artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: gold-data-${{ github.run_number }}
           path: data/gold/
           retention-days: 30
 
-      # 11. (Opcional) Commit dados de volta ao repo
-      # Descomente se quiser versionamento de dados no Git
-      # - name: Commit data changes
-      #   run: |
-      #     git config --local user.email "github-actions[bot]@users.noreply.github.com"
-      #     git config --local user.name "github-actions[bot]"
-      #     git add data/gold/*.parquet
-      #     git diff --staged --quiet || git commit -m "chore: update job data $(date +%Y-%m-%d)"
-      #     git push
-
       # 12. Notificação de sucesso/falha
       - name: Send notification on failure
         if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          echo "Pipeline failed! Check the logs."
-          # curl -X POST ${{ secrets.ALERT_WEBHOOK_URL }} \
-          #   -H "Content-Type: application/json" \
-          #   -d '{"text": "⚠️ Pipeline de vagas falhou!"}'
+          # Envia alerta de falha
+          python -c "
+          import os
+          import requests
+          
+          token = os.getenv('TELEGRAM_BOT_TOKEN')
+          chat_id = os.getenv('TELEGRAM_CHAT_ID')
+          
+          if token and chat_id:
+              message = '⚠️ Pipeline de vagas falhou! Verifique os logs.'
+              url = f'https://api.telegram.org/bot{token}/sendMessage'
+              requests.post(url, json={'chat_id': chat_id, 'text': message})
+          "
+        continue-on-error: true
 
+      # 13. Resumo da execução
       - name: Summary
+        if: always()
         run: |
           echo "## 📊 Pipeline Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- 🔍 Query: ${{ github.event.inputs.query || 'Data Engineer' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- 📁 Max Jobs: ${{ github.event.inputs.max_jobs || '50' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- ⏰ Run: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 Termos de Busca: Data Engineer, Automation Engineer, AI Engineer, Data Analyst" >> $GITHUB_STEP_SUMMARY
+          echo "- 📁 Max Jobs: 140 total" >> $GITHUB_STEP_SUMMARY
+          echo "- ⏰ Execução: $(date '+%Y-%m-%d %H:%M:%S %Z')" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔄 Frequência: A cada 3 horas" >> $GITHUB_STEP_SUMMARY
+          echo "- 📍 Timezone: America/Sao_Paulo (BRT)" >> $GITHUB_STEP_SUMMARY

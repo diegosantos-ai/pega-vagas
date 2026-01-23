@@ -1,0 +1,273 @@
+# ============================================
+# Configuração do Pipeline Pega-Vagas v2
+# ============================================
+# Arquivo centralizado para gerenciar termos de busca,
+# regras de filtragem e parâmetros de execução
+
+# --- TERMOS DE BUSCA ---
+search_terms:
+  # Data Engineer - Foco Principal
+  data_engineer:
+    - "Data Engineer"
+    - "Engenheiro de Dados"
+    - "Analytics Engineer"
+    - "Engenheiro de Analytics"
+    - "Data Platform"
+    - "Data Architect"
+    - "Arquiteto de Dados"
+
+  # Automação - Foco Secundário
+  automation:
+    - "Automation Engineer"
+    - "Engenheiro de Automação"
+    - "RPA Developer"
+    - "Desenvolvedor RPA"
+    - "Process Automation"
+
+  # IA / Machine Learning - Foco Secundário
+  ai_ml:
+    - "AI Engineer"
+    - "Engenheiro de IA"
+    - "Machine Learning Engineer"
+    - "Engenheiro de Machine Learning"
+    - "ML Engineer"
+
+  # Análise de Dados - Foco Secundário
+  data_analyst:
+    - "Data Analyst"
+    - "Analista de Dados"
+    - "Business Intelligence"
+    - "BI Analyst"
+
+  # Ciência de Dados - Foco Secundário
+  data_scientist:
+    - "Data Scientist"
+    - "Cientista de Dados"
+
+# --- FILTROS DE QUALIDADE ---
+quality_gate:
+  # Pontuação mínima para notificação (0-100)
+  min_score_threshold: 50
+
+  # Se True, rejeita qualquer menção de híbrido/presencial
+  strict_remote: true
+
+  # Padrões de REMOTO (positivos)
+  remote_positive_patterns:
+    - "100% remoto"
+    - "fully remote"
+    - "full remote"
+    - "remote first"
+    - "trabalho remoto"
+    - "home office"
+    - "anywhere in brazil"
+    - "anywhere in brasil"
+    - "work from anywhere"
+    - "work from home"
+
+  # Padrões de REJEIÇÃO (negativos - nunca devem passar)
+  remote_negative_patterns:
+    - "híbrido"
+    - "hybrid"
+    - "presencial"
+    - "on-site"
+    - "office based"
+    - "dias no escritório"
+    - "days in office"
+    - "residir em"
+    - "must live in"
+    - "requires relocation"
+    - "work from office"
+
+  # Locais que indicam Brasil (positivos)
+  brazil_positive_patterns:
+    - "brasil"
+    - "brasileiro"
+    - "brazil"
+    - "brazilian"
+    - "são paulo"
+    - "rio de janeiro"
+    - "belo horizonte"
+    - "curitiba"
+    - "recife"
+
+  # Locais que indicam fora do Brasil (negativos)
+  brazil_negative_patterns:
+    - "usa"
+    - "united states"
+    - "europa"
+    - "europe"
+    - "portugal"
+    - "lisboa"
+    - "madrid"
+    - "barcelona"
+    - "singapura"
+    - "singapore"
+    - "tóquio"
+    - "tokyo"
+    - "relocation"
+    - "relocate"
+
+  # Stack tecnológico esperado (pontos por menção)
+  tech_stack_points:
+    # Core Data
+    python: 10
+    sql: 8
+    spark: 12
+    airflow: 15
+    dbt: 10
+    kafka: 10
+    databricks: 12
+
+    # Cloud
+    aws: 8
+    gcp: 8
+    azure: 8
+
+    # IA/ML
+    tensorflow: 12
+    pytorch: 12
+    scikit-learn: 10
+    hugging face: 10
+    llm: 10
+    machine learning: 10
+
+    # Automação
+    rpa: 12
+    automation: 8
+    orchestration: 8
+
+    # Ferramentas
+    docker: 5
+    kubernetes: 5
+    git: 3
+    ci/cd: 8
+
+  # Bônus de senioridade
+  seniority_bonus:
+    senior: 10
+    lead: 15
+    staff: 15
+    principal: 15
+    head: 15
+    manager: 10
+    coordenador: 8
+
+  # Penalidades
+  penalties:
+    estágio: -20
+    intern: -20
+    junior: -10
+    jr.: -10
+    trainee: -15
+
+# --- AGENDAMENTO ---
+schedule:
+  # Frequência em horas (3 = a cada 3 horas)
+  frequency_hours: 3
+
+  # Horário de início (formato 24h, ex: "08:00")
+  start_time: "08:00"
+
+  # Horário de término (formato 24h, ex: "22:00")
+  # Se vazio, executa o dia todo
+  end_time: ""
+
+  # Timezone (IANA format)
+  timezone: "America/Sao_Paulo"
+
+# --- SCRAPING ---
+scraping:
+  # Plataformas a executar
+  platforms:
+    - "api"  # APIs (Gupy, Greenhouse, Lever, SmartRecruiters)
+    # - "gupy"  # Browser scraping (opcional, mais lento)
+    # - "vagas"  # Vagas.com.br (opcional)
+    # - "linkedin"  # LinkedIn (opcional, requer login)
+
+  # Máximo de vagas por execução
+  max_jobs_per_run: 100
+
+  # Máximo de vagas por empresa
+  max_jobs_per_company: 50
+
+  # Delay entre requisições (segundos)
+  scrape_delay_min: 2
+  scrape_delay_max: 5
+
+  # Timeout para requisições (segundos)
+  request_timeout: 30
+
+# --- PROCESSAMENTO LLM ---
+llm:
+  # Modelo a usar (gemini-2.0-flash, gpt-4o-mini, etc)
+  model: "gemini-2.0-flash"
+
+  # Temperatura (0 = determinístico, 1 = criativo)
+  temperature: 0.3
+
+  # Timeout para chamadas LLM (segundos)
+  timeout: 60
+
+  # Retry automático em caso de erro
+  max_retries: 3
+
+# --- NOTIFICAÇÃO TELEGRAM ---
+telegram:
+  # Formato da mensagem
+  # Opções: "simple", "detailed", "summary"
+  message_format: "detailed"
+
+  # Enviar apenas um resumo (ao invés de vaga por vaga)
+  send_summary_only: true
+
+  # Máximo de vagas por mensagem
+  max_jobs_per_message: 5
+
+  # Incluir link direto para a vaga
+  include_job_link: true
+
+  # Incluir score de relevância
+  include_score: true
+
+  # Emojis nas mensagens
+  use_emojis: true
+
+# --- STORAGE ---
+storage:
+  # Tipo: "local" ou "s3"
+  type: "local"
+
+  # Diretório local (se type=local)
+  local_path: "./data"
+
+  # Configuração S3 (se type=s3)
+  s3:
+    bucket: "pega-vagas-data"
+    region: "sa-east-1"
+    prefix: "jobs"
+
+# --- LOGGING ---
+logging:
+  # Nível de log: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
+
+  # Arquivo de log
+  file: "logs/pega-vagas.log"
+
+  # Manter logs por quantos dias
+  retention_days: 30
+
+# --- FEATURES EXPERIMENTAIS ---
+experimental:
+  # Usar cache de vagas já processadas
+  use_cache: true
+
+  # Limpar cache a cada quantas horas
+  cache_clear_hours: 24
+
+  # Enviar estatísticas de execução
+  send_stats: true
+
+  # Modo dry-run (não envia notificações)
+  dry_run: false
