@@ -190,7 +190,7 @@ jobs:
       # 13. Upload de artefatos (para debug)
       - name: Upload Bronze artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: bronze-data-${{ github.run_number }}
           path: data/bronze/
@@ -199,7 +199,7 @@ jobs:
 
       - name: Upload Silver artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: silver-data-${{ github.run_number }}
           path: data/silver/
@@ -208,7 +208,7 @@ jobs:
 
       - name: Upload Gold artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: gold-data-${{ github.run_number }}
           path: data/gold/
