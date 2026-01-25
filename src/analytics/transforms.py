@@ -31,7 +31,9 @@ def run_transforms(db_path: str = "data/gold/vagas.duckdb") -> None:
             AVG(salario_min) as salario_min_medio,
             AVG(salario_max) as salario_max_medio,
             COUNT(CASE WHEN modelo_trabalho = 'Remoto' THEN 1 END) as vagas_remotas,
-            ROUND(100.0 * COUNT(CASE WHEN modelo_trabalho = 'Remoto' THEN 1 END) / COUNT(*), 1) as pct_remoto
+            ROUND(
+                100.0 * COUNT(CASE WHEN modelo_trabalho = 'Remoto' THEN 1 END) / COUNT(*), 1
+            ) as pct_remoto
         FROM fact_vagas
         GROUP BY titulo_normalizado, senioridade
         ORDER BY total_vagas DESC
@@ -104,7 +106,9 @@ def run_transforms(db_path: str = "data/gold/vagas.duckdb") -> None:
             l.cidade,
             COUNT(*) as total_vagas,
             AVG(f.salario_max) as salario_medio,
-            ROUND(100.0 * COUNT(CASE WHEN f.modelo_trabalho = 'Remoto' THEN 1 END) / COUNT(*), 1) as pct_remoto
+            ROUND(
+                100.0 * COUNT(CASE WHEN f.modelo_trabalho = 'Remoto' THEN 1 END) / COUNT(*), 1
+            ) as pct_remoto
         FROM fact_vagas f
         JOIN dim_localidade l ON f.localidade_sk = l.localidade_sk
         WHERE l.pais = 'Brasil'

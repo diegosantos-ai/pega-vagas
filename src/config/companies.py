@@ -68,8 +68,14 @@ def get_sector_for_company(company: "Company") -> str:
 GUPY_COMPANIES = [
     # --- Bancos e Fintechs ---
     # Nota: Itaú e BB usam sistemas próprios ou Workday, não Gupy
-    Company("BTG Pactual", ATSType.GUPY, "btgpactual", "banco", 1, True, "Cultura meritocrática, viés quantitativo"),
-    Company("C6 Bank", ATSType.GUPY, "c6bank", "fintech", 1, True, "Crescimento acelerado, personalização de crédito"),
+    Company(
+        "BTG Pactual", ATSType.GUPY, "btgpactual", "banco", 1, True,
+        "Cultura meritocrática, viés quantitativo"
+    ),
+    Company(
+        "C6 Bank", ATSType.GUPY, "c6bank", "fintech", 1, True,
+        "Crescimento acelerado, personalização de crédito"
+    ),
     Company("Banco Inter", ATSType.GUPY, "bancointer", "fintech", 1, True, "Super App, BH"),
     Company("PicPay", ATSType.GUPY, "picpay", "fintech", 1, True, "Big Data em tempo real"),
     Company("PagBank", ATSType.GUPY, "pagbank", "fintech", 2, True),
@@ -83,19 +89,35 @@ GUPY_COMPANIES = [
     Company("RD Station", ATSType.GUPY, "rdstation", "tech", 1, True, "Floripa, cultura produto"),
     
     # --- Varejo e Indústria ---
-    Company("Magazine Luiza", ATSType.GUPY, "magazineluiza", "varejo", 1, True, "LuizaLabs, case de transformação"),
+    Company(
+        "Magazine Luiza", ATSType.GUPY, "magazineluiza", "varejo", 1, True,
+        "LuizaLabs, case de transformação"
+    ),
     Company("Ambev", ATSType.GUPY, "ambev", "industria", 1, False, "App BEES, logística massiva"),
     Company("Ambev Tech", ATSType.GUPY, "ambevtech", "industria", 1, False, "Tech hub da Ambev"),
     Company("Localiza", ATSType.GUPY, "localiza", "varejo", 2, False, "Telemetria veicular"),
     Company("Suzano", ATSType.GUPY, "suzano", "industria", 2, False, "Maior celulose do mundo"),
     Company("B3", ATSType.GUPY, "b3", "financeiro", 1, False, "Bolsa, baixa latência"),
-    Company("Grupo Boticário", ATSType.GUPY, "grupoboticario", "varejo", 1, True, "Beleza e cosméticos"),
-    Company("RaiaDrogasil", ATSType.GUPY, "raiadrogasil", "varejo", 1, True, "Maior rede farmácias do Brasil"),
-    Company("Unilever", ATSType.GUPY, "unilever", "industria", 1, True, "FMCG global, dados de consumo"),
+    Company(
+        "Grupo Boticário", ATSType.GUPY, "grupoboticario", "varejo", 1, True, "Beleza e cosméticos"
+    ),
+    Company(
+        "RaiaDrogasil", ATSType.GUPY, "raiadrogasil", "varejo", 1, True,
+        "Maior rede farmácias do Brasil"
+    ),
+    Company(
+        "Unilever", ATSType.GUPY, "unilever", "industria", 1, True,
+        "FMCG global, dados de consumo"
+    ),
     Company("Nestlé", ATSType.GUPY, "nestle", "industria", 1, True, "FMCG global, supply chain"),
     Company("Vale", ATSType.GUPY, "vale", "industria", 1, False, "Mineração, IoT massivo"),
-    Company("Heineken", ATSType.GUPY, "heineken", "industria", 2, True, "Bebidas, dados consumidor"),
-    Company("Grupo Carrefour", ATSType.GUPY, "grupocarrefourbrasil", "varejo", 1, True, "Varejo alimentar, Big Data"),
+    Company(
+        "Heineken", ATSType.GUPY, "heineken", "industria", 2, True, "Bebidas, dados consumidor"
+    ),
+    Company(
+        "Grupo Carrefour", ATSType.GUPY, "grupocarrefourbrasil", "varejo", 1, True,
+        "Varejo alimentar, Big Data"
+    ),
     Company("Siemens", ATSType.GUPY, "siemens", "industria", 1, True, "Tecnologia industrial, IoT"),
     Company("Vivo Telefônica", ATSType.GUPY, "vivo", "tech", 1, True, "Telecom, dados massivos"),
     

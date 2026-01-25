@@ -18,9 +18,8 @@ from pathlib import Path
 
 import httpx
 import structlog
-from dotenv import load_dotenv
+from src.config.settings import settings
 
-load_dotenv()
 logger = structlog.get_logger()
 
 
@@ -59,12 +58,12 @@ class TelegramNotifier:
     ):
         """
         Args:
-            bot_token: Token do bot Telegram (ou usa TELEGRAM_BOT_TOKEN)
-            chat_id: ID do chat para enviar (ou usa TELEGRAM_CHAT_ID)
+            bot_token: Token do bot Telegram (ou usa settings)
+            chat_id: ID do chat para enviar (ou usa settings)
             seen_jobs_file: Arquivo para tracking de vagas já notificadas
         """
-        self.bot_token = bot_token or os.getenv("TELEGRAM_BOT_TOKEN")
-        self.chat_id = chat_id or os.getenv("TELEGRAM_CHAT_ID")
+        self.bot_token = bot_token or settings.TELEGRAM_BOT_TOKEN
+        self.chat_id = chat_id or settings.TELEGRAM_CHAT_ID
         self.seen_jobs_file = Path(seen_jobs_file)
 
         if not self.bot_token:

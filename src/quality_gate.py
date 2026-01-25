@@ -20,7 +20,15 @@ class QualityGate:
     Regras baseadas no arquivo 'agents.md'.
     """
 
-    def __init__(self, target_roles: list[str] = None):
+    def __init__(self, target_roles: list[str] = None, check_links: bool = False):
+        """
+        Args:
+            target_roles: Lista de títulos de vagas alvo
+            check_links: Se True, verifica se o link da vaga está ativo (lento, pode dar falsos positivos)
+        """
+        # Flag para verificação de links (desabilitada por padrão)
+        self.check_links = check_links
+        
         # Definições trazidas do seu agents.md
         self.REMOTE_POSITIVE = [
             r"\b100%?\s*remoto\b", r"\bfully\s*remote\b", r"\bfull\s*remote\b",
@@ -47,7 +55,11 @@ class QualityGate:
         """
         try:
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/91.0.4472.124 Safari/537.36"
+                )
             }
             # Timeout curto para não travar o pipeline
             response = requests.head(url, headers=headers, timeout=5, allow_redirects=True)
@@ -116,7 +128,8 @@ class QualityGate:
             score -= 20 # Você tem experiência de gestão, Jr pode não pagar o que você quer
         
         # Bônus para Senioridade/Gestão (seu background)
-        if any(term in title_lower for term in ["senior", "lead", "staff", "principal", "head", "manager", "coord"]):
+        seniority_terms = ["senior", "lead", "staff", "principal", "head", "manager", "coord"]
+        if any(term in title_lower for term in seniority_terms):
             score += 10
 
         return max(0, min(score, 100))
@@ -136,7 +149,7 @@ class QualityGate:
         """
         
         # 1. Check de Link (Rápido)
-        if not self._check_link_alive(job_data.get("url", "")):
+        if self.check_links and not self._check_link_alive(job_data.get("url", "")):
             return JobScore(is_valid=False, score=0, rejection_reason="BROKEN_LINK")
 
         description = job_data.get("description", "")
@@ -146,13 +159,24 @@ class QualityGate:
         is_remote_candidate, remote_flags = self._analyze_remote_status(description, title)
         
         if not is_remote_candidate:
-             return JobScore(is_valid=False, score=0, rejection_reason="NOT_TRULY_REMOTE", flags=remote_flags)
+             return JobScore(
+                 is_valid=False, 
+                 score=0, 
+                 rejection_reason="NOT_TRULY_REMOTE", 
+                 flags=remote_flags
+             )
 
         # 3. Check de Brasil (Regra do agents.md)
         # Se a descrição tiver "work permit required for USA" ou "Lisbon", descarta.
-        invalid_locations = ["portugal", "lisbon", "lisboa", "madrid", "barcelona", "miami", "relocation"]
+        invalid_locations = [
+            "portugal", "lisbon", "lisboa", "madrid", "barcelona", "miami", "relocation"
+        ]
         if any(loc in description.lower() for loc in invalid_locations):
-             return JobScore(is_valid=False, score=0, rejection_reason="INTERNATIONAL_RELOCATION")
+             return JobScore(
+                 is_valid=False, 
+                 score=0, 
+                 rejection_reason="INTERNATIONAL_RELOCATION"
+             )
 
         # 4. Score de Relevância
         relevance = self._calculate_relevance_score(title, description)
@@ -176,7 +200,10 @@ if __name__ == "__main__":
     bad_job = {
         "url": "https://gupy.io/vaga-que-nao-existe", # Assuma que falha ou é híbrida
         "title": "Analista de Suporte Júnior",
-        "description": "Venha trabalhar no nosso escritório incrível. Modelo híbrido, 3x na semana."
+        "description": (
+            "Venha trabalhar no nosso escritório incrível. "
+            "Modelo híbrido, 3x na semana."
+        )
     }
     
     # Caso 2: Vaga Ouro

@@ -287,16 +287,13 @@ async def run_notify(platform: str = "all") -> int:
 
             vaga = data.get("vaga", data)
 
-            # FILTRO: Apenas vagas REMOTAS
-            work_model = vaga.get("modelo_trabalho", "")
-            if work_model != "Remoto":
-                # Logger debug opcional para saber o que foi filtrado
-                # logger.debug(f"Ignorando vaga não-remota: {vaga.get('titulo_original')}")
-                continue
+
 
 
             # QualityGate: valida vaga antes de notificar
-            gate = QualityGate()
+            # self.check_links=False por padrão para não bloquear vagas com 403 (comum em api cleaners)
+            gate = QualityGate(check_links=False)
+            
             avaliacao = gate.evaluate({
                 "url": vaga.get("url_origem", ""),
                 "title": vaga.get("titulo_normalizado", vaga.get("titulo_original", "")),
@@ -304,23 +301,37 @@ async def run_notify(platform: str = "all") -> int:
                 "company": vaga.get("empresa", ""),
                 "original_location": vaga.get("localidade", "")
             })
-            if not (avaliacao.is_valid and avaliacao.score >= 40):
-                logger.info(f"Vaga descartada pelo QualityGate: {avaliacao.rejection_reason}")
+            if not avaliacao.is_valid:
+                logger.debug(f"QualityGate rejeitou: {vaga.get('titulo_original')} ({avaliacao.rejection_reason})")
+                continue
+            
+            if avaliacao.score < 40:
+                logger.debug(f"Score baixo ({avaliacao.score}): {vaga.get('titulo_original')}")
                 continue
 
+            # Extração segura de campos complexos
+            loc = vaga.get("localidade")
+            city = loc.get("cidade", "") if isinstance(loc, dict) else str(loc) if loc else ""
+            
+            sal = vaga.get("salario")
+            s_min = sal.get("valor_minimo") if isinstance(sal, dict) else None
+            s_max = sal.get("valor_maximo") if isinstance(sal, dict) else None
+
+            # Normalização de skills
             skills = []
             if vaga.get("skills"):
-                skills = [s.get("nome", s) if isinstance(s, dict) else s for s in vaga["skills"][:5]]
+                raw_skills = vaga["skills"][:5]
+                skills = [s.get("nome", s) if isinstance(s, dict) else str(s) for s in raw_skills]
 
             job = JobNotification(
                 title=vaga.get("titulo_normalizado", vaga.get("titulo_original", "N/A")),
                 company=vaga.get("empresa", "N/A"),
-                location=vaga.get("localidade", {}).get("cidade", "") if isinstance(vaga.get("localidade"), dict) else "",
+                location=city,
                 work_model=vaga.get("modelo_trabalho", ""),
                 url=vaga.get("url_origem", ""),
                 platform=vaga.get("plataforma", platform),
-                salary_min=vaga.get("salario", {}).get("valor_minimo") if isinstance(vaga.get("salario"), dict) else None,
-                salary_max=vaga.get("salario", {}).get("valor_maximo") if isinstance(vaga.get("salario"), dict) else None,
+                salary_min=s_min,
+                salary_max=s_max,
                 skills=skills,
             )
             jobs.append(job)

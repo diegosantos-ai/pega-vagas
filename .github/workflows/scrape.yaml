@@ -65,11 +65,24 @@ jobs:
       # 4. Restaurar cache de vagas notificadas
       - name: Restore seen jobs cache
         uses: actions/cache@v4
+        id: cache-seen-jobs
         with:
           path: data/.seen_jobs.json
-          key: seen-jobs-${{ github.run_number }}
+          # Usa hash do arquivo anterior se possível, ou run number anterior
+          key: seen-jobs-${{ github.run_id }}
           restore-keys: |
             seen-jobs-
+      
+      - name: Debug Cache Restore
+        run: |
+          echo "Cache hit: ${{ steps.cache-seen-jobs.outputs.cache-hit }}"
+          ls -la data/ || echo "Data dir not found"
+          if [ -f data/.seen_jobs.json ]; then
+            echo "Conteúdo inicial do cache:"
+            cat data/.seen_jobs.json
+          else
+            echo "⚠️ Cache não encontrado ou arquivo ausente"
+          fi
 
       # 5. Instala dependências
       - name: Install dependencies
