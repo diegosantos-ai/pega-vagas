@@ -6,11 +6,8 @@ mas é agressiva com rate limiting e detecção de bots.
 Usa Camoufox para mitigar.
 """
 
-import asyncio
-import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import structlog
 
@@ -68,7 +65,7 @@ class LinkedInScraper(BaseScraper):
     async def scrape_listings(
         self,
         query: str,
-        location: Optional[str] = None,
+        location: str | None = None,
         max_pages: int = 3,
     ) -> list[dict]:
         listings = []

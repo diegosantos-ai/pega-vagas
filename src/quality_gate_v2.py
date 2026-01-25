@@ -4,9 +4,9 @@ Filtra vagas antes da notificação com regras configuráveis e pontuação.
 Foco: Data Engineer, Automação, IA e Análise de Dados - 100% REMOTO
 """
 
-import re
 import logging
-from typing import Dict, Optional
+import re
+
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("QualityGate_v2")
@@ -16,9 +16,9 @@ class JobScore(BaseModel):
     """Modelo de saída da avaliação de qualidade."""
     is_valid: bool
     score: int = Field(ge=0, le=100)
-    rejection_reason: Optional[str] = None
+    rejection_reason: str | None = None
     flags: list[str] = []
-    details: Dict = {}
+    details: dict = {}
 
 
 class QualityGateV2:
@@ -316,7 +316,7 @@ class QualityGateV2:
 
         return min(score, 100), flags
 
-    def evaluate(self, job_data: Dict) -> JobScore:
+    def evaluate(self, job_data: dict) -> JobScore:
         """
         Função principal de avaliação.
         

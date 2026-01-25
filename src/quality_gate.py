@@ -1,7 +1,7 @@
-import re
 import logging
+import re
+
 import requests
-from typing import Dict, Tuple, Optional
 from pydantic import BaseModel, Field
 
 # Configuração de Logger
@@ -11,7 +11,7 @@ class JobScore(BaseModel):
     """Modelo de saída da avaliação de qualidade."""
     is_valid: bool
     score: int = Field(ge=0, le=100)
-    rejection_reason: Optional[str] = None
+    rejection_reason: str | None = None
     flags: list[str] = []
 
 class QualityGate:
@@ -63,7 +63,7 @@ class QualityGate:
             logger.warning(f"Erro ao verificar link {url}: {e}")
             return False # Na dúvida, assume quebrado ou instável
 
-    def _analyze_remote_status(self, description: str, title: str) -> Tuple[bool, list[str]]:
+    def _analyze_remote_status(self, description: str, title: str) -> tuple[bool, list[str]]:
         """
         Aplica Regex para validar se é realmente remoto.
         Retorna (is_remote, flags)
@@ -121,7 +121,7 @@ class QualityGate:
 
         return max(0, min(score, 100))
 
-    def evaluate(self, job_data: Dict) -> JobScore:
+    def evaluate(self, job_data: dict) -> JobScore:
         """
         Função principal chamada pelo pipeline.
         

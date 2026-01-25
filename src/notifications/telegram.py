@@ -15,7 +15,6 @@ import os
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import httpx
 import structlog
@@ -35,10 +34,10 @@ class JobNotification:
     work_model: str  # Remoto, Híbrido, Presencial
     url: str
     platform: str
-    salary_min: Optional[float] = None
-    salary_max: Optional[float] = None
-    skills: Optional[list[str]] = None
-    published_date: Optional[str] = None
+    salary_min: float | None = None
+    salary_max: float | None = None
+    skills: list[str] | None = None
+    published_date: str | None = None
 
 
 class TelegramNotifier:
@@ -54,8 +53,8 @@ class TelegramNotifier:
 
     def __init__(
         self,
-        bot_token: Optional[str] = None,
-        chat_id: Optional[str] = None,
+        bot_token: str | None = None,
+        chat_id: str | None = None,
         seen_jobs_file: str = "data/.seen_jobs.json",
     ):
         """

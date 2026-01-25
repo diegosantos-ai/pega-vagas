@@ -12,11 +12,9 @@ Estes scrapers são mais rápidos e confiáveis que navegador.
 
 import asyncio
 import json
-import os
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import httpx
 import structlog
@@ -53,14 +51,14 @@ class BaseAPIScraper(ABC):
         pass
 
     @abstractmethod
-    async def fetch_jobs(self, company: Company, query: Optional[str] = None) -> list[dict]:
+    async def fetch_jobs(self, company: Company, query: str | None = None) -> list[dict]:
         """Busca vagas de uma empresa específica."""
         pass
 
     async def run(
         self,
-        companies: Optional[list[Company]] = None,
-        query: Optional[str] = None,
+        companies: list[Company] | None = None,
+        query: str | None = None,
         max_jobs_per_company: int = 100,
     ) -> list[str]:
         """
@@ -82,11 +80,11 @@ class BaseAPIScraper(ABC):
 
         for company in companies:
             try:
-                logger.info(f"Buscando vagas", company=company.name, platform=self.platform_name)
+                logger.info("Buscando vagas", company=company.name, platform=self.platform_name)
                 jobs = await self.fetch_jobs(company, query)
 
                 if not jobs:
-                    logger.debug(f"Nenhuma vaga encontrada", company=company.name)
+                    logger.debug("Nenhuma vaga encontrada", company=company.name)
                     continue
 
                 # Limita quantidade
@@ -108,16 +106,16 @@ class BaseAPIScraper(ABC):
                     saved_files.append(str(file_path))
                     total_jobs += 1
 
-                logger.info(f"Vagas coletadas", company=company.name, count=len(jobs))
+                logger.info("Vagas coletadas", company=company.name, count=len(jobs))
 
                 # Rate limiting
                 await asyncio.sleep(1)
 
             except Exception as e:
-                logger.error(f"Erro ao buscar vagas", company=company.name, error=str(e))
+                logger.error("Erro ao buscar vagas", company=company.name, error=str(e))
 
         await self.client.aclose()
-        logger.info(f"Scraping finalizado", platform=self.platform_name, total_jobs=total_jobs)
+        logger.info("Scraping finalizado", platform=self.platform_name, total_jobs=total_jobs)
         return saved_files
 
     async def _save_job(self, company: Company, job: dict) -> Path:
@@ -167,7 +165,7 @@ class GupyAPIScraper(BaseAPIScraper):
     async def fetch_jobs(
         self,
         company: Company,
-        query: Optional[str] = None,
+        query: str | None = None,
         remote_only: bool = True,
     ) -> list[dict]:
         """Busca vagas de uma empresa na Gupy.
@@ -211,7 +209,7 @@ class GupyAPIScraper(BaseAPIScraper):
                 return jobs
 
         except Exception as e:
-            logger.debug(f"API da empresa falhou, tentando portal", error=str(e))
+            logger.debug("API da empresa falhou, tentando portal", error=str(e))
 
         # Fallback: API do portal de busca
         try:
@@ -236,7 +234,7 @@ class GupyAPIScraper(BaseAPIScraper):
                 ]
 
         except Exception as e:
-            logger.error(f"Erro na API Gupy", error=str(e))
+            logger.error("Erro na API Gupy", error=str(e))
 
         return jobs
 
@@ -286,7 +284,7 @@ class GreenhouseAPIScraper(BaseAPIScraper):
     async def fetch_jobs(
         self,
         company: Company,
-        query: Optional[str] = None,
+        query: str | None = None,
         remote_only: bool = True,
         brazil_only: bool = True,
     ) -> list[dict]:
@@ -329,11 +327,11 @@ class GreenhouseAPIScraper(BaseAPIScraper):
                 return jobs
 
             elif response.status_code == 404:
-                logger.warning(f"Board não encontrado", company=company.name)
+                logger.warning("Board não encontrado", company=company.name)
                 return []
 
         except Exception as e:
-            logger.error(f"Erro na API Greenhouse", company=company.name, error=str(e))
+            logger.error("Erro na API Greenhouse", company=company.name, error=str(e))
 
         return []
 
@@ -393,7 +391,7 @@ class LeverAPIScraper(BaseAPIScraper):
     API_URL = "https://api.lever.co/v0/postings/{company}"
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
-    async def fetch_jobs(self, company: Company, query: Optional[str] = None) -> list[dict]:
+    async def fetch_jobs(self, company: Company, query: str | None = None) -> list[dict]:
         """Busca vagas de uma empresa no Lever."""
         url = self.API_URL.format(company=company.identifier)
         params = {"mode": "json"}
@@ -420,7 +418,7 @@ class LeverAPIScraper(BaseAPIScraper):
                     return jobs
 
         except Exception as e:
-            logger.error(f"Erro na API Lever", company=company.name, error=str(e))
+            logger.error("Erro na API Lever", company=company.name, error=str(e))
 
         return []
 
@@ -441,7 +439,7 @@ class SmartRecruitersAPIScraper(BaseAPIScraper):
     API_URL = "https://api.smartrecruiters.com/v1/companies/{company}/postings"
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
-    async def fetch_jobs(self, company: Company, query: Optional[str] = None) -> list[dict]:
+    async def fetch_jobs(self, company: Company, query: str | None = None) -> list[dict]:
         """Busca vagas de uma empresa no SmartRecruiters."""
         url = self.API_URL.format(company=company.identifier)
         params = {"country": "br"}  # Filtra apenas Brasil
@@ -466,7 +464,7 @@ class SmartRecruitersAPIScraper(BaseAPIScraper):
                 return jobs
 
         except Exception as e:
-            logger.error(f"Erro na API SmartRecruiters", company=company.name, error=str(e))
+            logger.error("Erro na API SmartRecruiters", company=company.name, error=str(e))
 
         return []
 
@@ -474,7 +472,7 @@ class SmartRecruitersAPIScraper(BaseAPIScraper):
 # =============================================================================
 # FACTORY E AGREGADOR
 # =============================================================================
-def get_scraper(ats_type: ATSType) -> Optional[BaseAPIScraper]:
+def get_scraper(ats_type: ATSType) -> BaseAPIScraper | None:
     """Retorna o scraper apropriado para o tipo de ATS."""
     scrapers = {
         ATSType.GUPY: GupyAPIScraper,
@@ -487,7 +485,7 @@ def get_scraper(ats_type: ATSType) -> Optional[BaseAPIScraper]:
 
 
 async def run_all_api_scrapers(
-    query: Optional[str] = None,
+    query: str | None = None,
     max_jobs_per_company: int = 50,
     priority_only: bool = True,
 ) -> list[str]:
@@ -539,7 +537,7 @@ if __name__ == "__main__":
     async def test():
         # Testa Greenhouse (mais confiável)
         scraper = GreenhouseAPIScraper()
-        from src.config.companies import Company, ATSType
+        from src.config.companies import ATSType, Company
 
         nubank = Company("Nubank", ATSType.GREENHOUSE, "nubank", "fintech", 1, True)
         jobs = await scraper.fetch_jobs(nubank)

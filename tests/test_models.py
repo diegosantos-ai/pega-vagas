@@ -7,9 +7,6 @@ import pytest
 
 from src.analytics.models import (
     STAR_SCHEMA_DDL,
-    create_star_schema,
-    get_or_create_empresa,
-    get_or_create_localidade,
 )
 
 

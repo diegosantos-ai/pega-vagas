@@ -10,7 +10,6 @@ Suporta múltiplos provedores:
 import random
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 import structlog
 
@@ -32,10 +31,10 @@ class ProxyConfig:
 
     host: str
     port: int
-    username: Optional[str] = None
-    password: Optional[str] = None
+    username: str | None = None
+    password: str | None = None
     country: str = "br"  # Código do país
-    session_id: Optional[str] = None  # Para sticky sessions
+    session_id: str | None = None  # Para sticky sessions
 
     @property
     def url(self) -> str:
@@ -87,10 +86,10 @@ class ProxyManager:
     def __init__(
         self,
         provider: ProxyProvider = ProxyProvider.CUSTOM,
-        host: Optional[str] = None,
-        port: Optional[int] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
+        host: str | None = None,
+        port: int | None = None,
+        username: str | None = None,
+        password: str | None = None,
         country: str = "br",
     ):
         """
@@ -160,7 +159,7 @@ class ProxyManager:
             session_id=session_id,
         )
 
-    def _build_username(self, session_id: Optional[str] = None) -> Optional[str]:
+    def _build_username(self, session_id: str | None = None) -> str | None:
         """Constrói username com parâmetros do provedor."""
         if not self.username:
             return None
@@ -199,7 +198,7 @@ class ProxyManager:
         )
 
 
-def load_proxy_from_env() -> Optional[ProxyManager]:
+def load_proxy_from_env() -> ProxyManager | None:
     """
     Carrega configuração de proxy das variáveis de ambiente.
 

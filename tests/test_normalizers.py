@@ -6,11 +6,9 @@ import pytest
 
 from src.processing.normalizers import (
     normalize_job_title,
-    normalize_seniority,
     normalize_location,
+    normalize_seniority,
     parse_location_string,
-    TITLE_MAPPINGS,
-    SENIORITY_KEYWORDS,
 )
 
 

@@ -10,7 +10,6 @@ Implementa as tabelas:
 
 from datetime import date, datetime
 from pathlib import Path
-from typing import Optional
 
 import duckdb
 import structlog
@@ -163,7 +162,7 @@ def populate_dim_tempo(conn: duckdb.DuckDBPyConnection, start_date: date, end_da
 def get_or_create_empresa(
     conn: duckdb.DuckDBPyConnection,
     nome: str,
-    setor: Optional[str] = None,
+    setor: str | None = None,
 ) -> int:
     """
     Obtém ou cria uma empresa na dimensão, retornando a surrogate key.
@@ -195,8 +194,8 @@ def get_or_create_empresa(
 
 def get_or_create_localidade(
     conn: duckdb.DuckDBPyConnection,
-    cidade: Optional[str],
-    estado: Optional[str],
+    cidade: str | None,
+    estado: str | None,
     pais: str = "Brasil",
 ) -> int:
     """
@@ -228,7 +227,7 @@ def get_or_create_localidade(
     return new_sk
 
 
-def _get_regiao_brasil(estado: Optional[str]) -> Optional[str]:
+def _get_regiao_brasil(estado: str | None) -> str | None:
     """Retorna a região do Brasil baseado na sigla do estado."""
     if not estado:
         return None

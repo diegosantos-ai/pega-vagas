@@ -14,11 +14,9 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
-from urllib.parse import urljoin, urlparse
 
 import structlog
-from playwright.async_api import Page, Response, Route
+from playwright.async_api import Response
 
 from src.config.companies import ATSType, Company, get_companies_by_ats
 from src.ingestion.browser import BrowserManager
@@ -60,7 +58,7 @@ class WorkdayScraper:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.headless = headless
         self._jobs_collected: list[dict] = []
-        self._current_company: Optional[Company] = None
+        self._current_company: Company | None = None
         
     async def _handle_response(self, response: Response):
         """Intercepta e processa respostas da API Workday."""
@@ -92,7 +90,7 @@ class WorkdayScraper:
                 self._jobs_collected.extend(jobs)
                 
         except Exception as e:
-            logger.debug(f"Erro ao processar response", url=url[:50], error=str(e))
+            logger.debug("Erro ao processar response", url=url[:50], error=str(e))
     
     def _extract_jobs_from_wdx(self, data: dict) -> list[dict]:
         """Extrai vagas do formato WDX complexo."""
@@ -140,7 +138,7 @@ class WorkdayScraper:
             
         return jobs
     
-    def _parse_wdx_posting(self, posting: dict) -> Optional[dict]:
+    def _parse_wdx_posting(self, posting: dict) -> dict | None:
         """Parseia formato jobPosting."""
         return {
             "id": posting.get("bulletFields", [{}])[0].get("id") if posting.get("bulletFields") else None,
@@ -152,7 +150,7 @@ class WorkdayScraper:
             "external_url": posting.get("externalPath", ""),
         }
     
-    def _parse_wdx_widget(self, widget: dict) -> Optional[dict]:
+    def _parse_wdx_widget(self, widget: dict) -> dict | None:
         """Parseia formato widget."""
         title = widget.get("title", {}).get("text", "")
         if not title:
@@ -165,7 +163,7 @@ class WorkdayScraper:
             "external_url": widget.get("commandLink", {}).get("uri", ""),
         }
     
-    def _parse_wdx_list_item(self, item: dict) -> Optional[dict]:
+    def _parse_wdx_list_item(self, item: dict) -> dict | None:
         """Parseia formato listItem (mais comum)."""
         title_data = item.get("title", {})
         title = title_data.get("instances", [{}])[0].get("text", "") if title_data.get("instances") else ""
@@ -225,7 +223,7 @@ class WorkdayScraper:
                 
         return jobs
     
-    async def fetch_jobs(self, company: Company, query: Optional[str] = None) -> list[dict]:
+    async def fetch_jobs(self, company: Company, query: str | None = None) -> list[dict]:
         """
         Busca vagas de uma empresa no Workday.
         
@@ -241,7 +239,7 @@ class WorkdayScraper:
         
         base_url = WORKDAY_URLS.get(company.identifier)
         if not base_url:
-            logger.warning(f"URL Workday não configurada", company=company.name)
+            logger.warning("URL Workday não configurada", company=company.name)
             return []
             
         async with BrowserManager(headless=self.headless) as browser:
@@ -252,7 +250,7 @@ class WorkdayScraper:
             
             try:
                 # Navega para página de carreiras
-                logger.info(f"Navegando para Workday", company=company.name, url=base_url)
+                logger.info("Navegando para Workday", company=company.name, url=base_url)
                 await page.goto(base_url, wait_until="networkidle", timeout=60000)
                 
                 # Aguarda carregamento inicial
@@ -279,7 +277,7 @@ class WorkdayScraper:
                 await asyncio.sleep(3)
                 
             except Exception as e:
-                logger.error(f"Erro ao navegar Workday", company=company.name, error=str(e))
+                logger.error("Erro ao navegar Workday", company=company.name, error=str(e))
                 
             finally:
                 await page.close()
@@ -293,13 +291,13 @@ class WorkdayScraper:
                 seen_ids.add(job_id)
                 unique_jobs.append(job)
                 
-        logger.info(f"Vagas coletadas do Workday", company=company.name, count=len(unique_jobs))
+        logger.info("Vagas coletadas do Workday", company=company.name, count=len(unique_jobs))
         return unique_jobs
     
     async def run(
         self,
-        companies: Optional[list[Company]] = None,
-        query: Optional[str] = None,
+        companies: list[Company] | None = None,
+        query: str | None = None,
         max_jobs_per_company: int = 100,
     ) -> list[str]:
         """
@@ -324,7 +322,7 @@ class WorkdayScraper:
                 jobs = await self.fetch_jobs(company, query)
                 
                 if not jobs:
-                    logger.warning(f"Nenhuma vaga encontrada", company=company.name)
+                    logger.warning("Nenhuma vaga encontrada", company=company.name)
                     continue
                     
                 # Limita quantidade
@@ -345,15 +343,15 @@ class WorkdayScraper:
                     saved_files.append(str(file_path))
                     total_jobs += 1
                     
-                logger.info(f"Vagas salvas", company=company.name, count=len(jobs))
+                logger.info("Vagas salvas", company=company.name, count=len(jobs))
                 
                 # Rate limiting entre empresas
                 await asyncio.sleep(5)
                 
             except Exception as e:
-                logger.error(f"Erro no scraping Workday", company=company.name, error=str(e))
+                logger.error("Erro no scraping Workday", company=company.name, error=str(e))
                 
-        logger.info(f"Scraping Workday finalizado", total_jobs=total_jobs)
+        logger.info("Scraping Workday finalizado", total_jobs=total_jobs)
         return saved_files
     
     def _save_job(self, company: Company, job: dict) -> Path:

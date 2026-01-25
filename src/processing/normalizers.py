@@ -6,8 +6,6 @@ e melhora a extração de dados geográficos.
 """
 
 import re
-from typing import Optional
-
 
 # =============================================================================
 # MAPEAMENTOS DE TÍTULOS
@@ -150,7 +148,7 @@ SENIORITY_KEYWORDS = {
 }
 
 
-def normalize_seniority(text: str, years_experience: Optional[int] = None) -> str:
+def normalize_seniority(text: str, years_experience: int | None = None) -> str:
     """
     Extrai e normaliza a senioridade a partir do texto ou experiência.
     
@@ -379,9 +377,9 @@ def parse_location_string(location_str: str) -> dict:
 
 
 def normalize_location(
-    cidade: Optional[str] = None,
-    estado: Optional[str] = None,
-    pais: Optional[str] = None,
+    cidade: str | None = None,
+    estado: str | None = None,
+    pais: str | None = None,
 ) -> dict:
     """
     Normaliza informações de localização.

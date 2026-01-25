@@ -7,7 +7,6 @@ Organizado por ATS (Applicant Tracking System) para otimizar a coleta.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 class ATSType(Enum):
@@ -29,8 +28,8 @@ class Company:
     category: str  # Categoria interna (banco, fintech, tech, etc)
     priority: int = 1  # 1 = alta, 2 = média, 3 = baixa
     remote_friendly: bool = False
-    notes: Optional[str] = None
-    sector: Optional[str] = None  # Setor oficial para dim_empresa
+    notes: str | None = None
+    sector: str | None = None  # Setor oficial para dim_empresa
 
 
 # =============================================================================
@@ -90,11 +89,23 @@ GUPY_COMPANIES = [
     Company("Localiza", ATSType.GUPY, "localiza", "varejo", 2, False, "Telemetria veicular"),
     Company("Suzano", ATSType.GUPY, "suzano", "industria", 2, False, "Maior celulose do mundo"),
     Company("B3", ATSType.GUPY, "b3", "financeiro", 1, False, "Bolsa, baixa latência"),
+    Company("Grupo Boticário", ATSType.GUPY, "grupoboticario", "varejo", 1, True, "Beleza e cosméticos"),
+    Company("RaiaDrogasil", ATSType.GUPY, "raiadrogasil", "varejo", 1, True, "Maior rede farmácias do Brasil"),
+    Company("Unilever", ATSType.GUPY, "unilever", "industria", 1, True, "FMCG global, dados de consumo"),
+    Company("Nestlé", ATSType.GUPY, "nestle", "industria", 1, True, "FMCG global, supply chain"),
+    Company("Vale", ATSType.GUPY, "vale", "industria", 1, False, "Mineração, IoT massivo"),
+    Company("Heineken", ATSType.GUPY, "heineken", "industria", 2, True, "Bebidas, dados consumidor"),
+    Company("Grupo Carrefour", ATSType.GUPY, "grupocarrefourbrasil", "varejo", 1, True, "Varejo alimentar, Big Data"),
+    Company("Siemens", ATSType.GUPY, "siemens", "industria", 1, True, "Tecnologia industrial, IoT"),
+    Company("Vivo Telefônica", ATSType.GUPY, "vivo", "tech", 1, True, "Telecom, dados massivos"),
     
     # --- Consultorias ---
     Company("Stefanini", ATSType.GUPY, "stefanini", "consultoria", 3, True, "Multinacional brasileira TI"),
     Company("Semantix", ATSType.GUPY, "semantix", "consultoria", 2, True, "Big Data e IA"),
     Company("BHS", ATSType.GUPY, "bhs", "consultoria", 3, True, "Parceira Microsoft, MG"),
+    Company("IBM", ATSType.GUPY, "ibm", "consultoria", 1, True, "BigTech, Watson AI"),
+    Company("Accenture", ATSType.GUPY, "accenture", "consultoria", 1, True, "Big Four consultoria, global"),
+    Company("Deloitte", ATSType.GUPY, "deloittebrasil", "consultoria", 1, True, "Big Four, analytics"),
 ]
 
 

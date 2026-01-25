@@ -8,16 +8,16 @@ Uso:
     python -m src.pipeline gold
     python -m src.pipeline run  # Executa tudo
 """
-from src.quality_gate import QualityGate
-
 import argparse
 import asyncio
 import json
 import sys
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 
 import structlog
+
+from src.quality_gate import QualityGate
 
 # Configuração de logging estruturado
 structlog.configure(
@@ -49,11 +49,10 @@ async def run_bronze(query: str, max_jobs: int, platform: str) -> list[str]:
         try:
             from src.ingestion.scrapers.api_scrapers import (
                 GreenhouseAPIScraper,
+                GupyAPIScraper,
                 LeverAPIScraper,
                 SmartRecruitersAPIScraper,
-                GupyAPIScraper,
             )
-            from src.config.companies import get_companies_by_ats, ATSType
 
             # Greenhouse (Nubank, Stone, XP, etc)
             if platform in ("all", "api", "greenhouse"):

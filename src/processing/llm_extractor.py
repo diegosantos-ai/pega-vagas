@@ -8,14 +8,13 @@ retornando dados validados pelo schema Pydantic.
 import json
 import os
 from abc import ABC, abstractmethod
-from typing import Optional
 
 import structlog
 from dotenv import load_dotenv
 from pydantic import ValidationError
 
 from src.processing.html_cleaner import clean_html
-from src.schemas.job import VagaEmprego, VagaExtractionResult
+from src.schemas.job import VagaExtractionResult
 
 load_dotenv()
 logger = structlog.get_logger()
@@ -221,7 +220,7 @@ class LLMExtractor:
     def __init__(
         self,
         provider: str = "gemini",
-        model: Optional[str] = None,
+        model: str | None = None,
         max_retries: int = 3,
     ):
         """
@@ -245,10 +244,10 @@ class LLMExtractor:
     async def extract_from_html(
         self,
         html_content: str,
-        url: Optional[str] = None,
-        platform: Optional[str] = None,
-        title_hint: Optional[str] = None,
-        company_hint: Optional[str] = None,
+        url: str | None = None,
+        platform: str | None = None,
+        title_hint: str | None = None,
+        company_hint: str | None = None,
     ) -> VagaExtractionResult:
         """
         Extrai dados estruturados de uma vaga a partir do HTML.

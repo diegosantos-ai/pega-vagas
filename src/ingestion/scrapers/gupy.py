@@ -12,14 +12,12 @@ Estrutura:
 import asyncio
 import re
 from datetime import datetime
-from typing import Optional
-from urllib.parse import quote, urljoin
+from urllib.parse import quote
 
 import structlog
-from playwright.async_api import Page
 
 from src.ingestion.browser import humanize_delay, humanize_scroll
-from src.ingestion.scrapers.base import BaseScraper, BlockedError, ScrapingError
+from src.ingestion.scrapers.base import BaseScraper
 
 logger = structlog.get_logger()
 
@@ -59,7 +57,7 @@ class GupyScraper(BaseScraper):
     async def scrape_listings(
         self,
         query: str,
-        location: Optional[str] = None,
+        location: str | None = None,
         max_pages: int = 5,
     ) -> list[dict]:
         """
@@ -125,7 +123,7 @@ class GupyScraper(BaseScraper):
         logger.info(f"Extraídas {len(listings)} vagas da listagem")
         return listings
 
-    async def _extract_listing_card(self, card) -> Optional[dict]:
+    async def _extract_listing_card(self, card) -> dict | None:
         """Extrai dados de um card de vaga na listagem."""
         try:
             # URL da vaga

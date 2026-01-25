@@ -6,7 +6,6 @@ import pytest
 from pydantic import ValidationError
 
 from src.schemas.job import (
-    Habilidade,
     Localidade,
     Salario,
     VagaEmprego,

@@ -1,143 +1,214 @@
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
+  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome">
+</p>
 
-# 🎯 Pega-Vagas
+<h1 align="center">🎯 Pega-Vagas</h1>
 
-Pipeline de Engenharia de Dados para coleta, validação e notificação de vagas de tecnologia **100% remotas** para o Brasil.
+<p align="center">
+  <strong>Pipeline de Engenharia de Dados para coleta, validação e notificação de vagas de tecnologia 100% remotas para o Brasil.</strong>
+</p>
+
+---
 
 ## 📋 Visão Geral
 
-Pipeline automatizado para:
-- Coletar vagas de APIs (Gupy, Greenhouse, etc)
-- Filtrar por remoto, Brasil, título e qualidade (QualityGate)
-- Deduplicar e validar links
-- Notificar apenas vagas relevantes via Telegram
+**Pega-Vagas** é um pipeline automatizado que:
 
-Arquitetura baseada em **Medallion** (Bronze/Silver/Gold) + QualityGate:
+- 🔍 **Coleta** vagas de múltiplas APIs (Gupy, Greenhouse, etc.)
+- 🤖 **Processa** descrições com LLM (Gemini) para extração estruturada
+- 🛡️ **Filtra** vagas não-remotas, híbridas ou irrelevantes (QualityGate)
+- 📲 **Notifica** apenas vagas relevantes via Telegram
+- 📊 **Armazena** dados em formato analítico (DuckDB + Parquet)
+
+### Arquitetura Medallion
 
 ```
-API Scraping → Bronze (raw JSON) → Silver (LLM/validação) → QualityGate → Telegram
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│   Bronze    │───▶│   Silver    │───▶│ QualityGate │───▶│    Gold     │───▶│  Telegram   │
+│  (Raw JSON) │    │ (LLM Parse) │    │  (Filtros)  │    │  (DuckDB)   │    │(Notificação)│
+└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
 ```
+
+---
 
 ## 🚀 Quick Start
 
+### 1. Clone e Instale
+
 ```bash
-# 1. Clone e instale
-git clone https://github.com/seu-usuario/pega-vagas.git
+git clone https://github.com/diegosantos-ai/pega-vagas.git
 cd pega-vagas
 pip install -e ".[dev]"
+```
 
-# 2. Instale o navegador (opcional)
-playwright install firefox
+### 2. Configure Variáveis de Ambiente
 
-# 3. Configure variáveis (.env)
+```bash
 cp .env.example .env
-# Edite .env com suas chaves de API e Telegram
+# Edite .env com suas chaves
+```
 
-# 4. Execute pipeline completo
+**Variáveis obrigatórias:**
+
+| Variável | Descrição |
+|----------|-----------|
+| `GOOGLE_API_KEY` | Chave da API Gemini ([obter aqui](https://aistudio.google.com/apikey)) |
+| `TELEGRAM_BOT_TOKEN` | Token do bot ([@BotFather](https://t.me/BotFather)) |
+| `TELEGRAM_CHAT_ID` | ID do grupo/canal de notificações |
+
+### 3. Execute o Pipeline
+
+```bash
+# Pipeline completo
 python -m src.pipeline run
 
-# 5. (Opcional) Teste etapas isoladas
+# Ou etapas isoladas
 python -m src.pipeline bronze --query "Data Engineer"
 python -m src.pipeline silver
 python -m src.pipeline gold
 python -m src.pipeline notify
 ```
 
+---
 
-## 🛠️ Tecnologias & Componentes
+## 🔄 GitHub Actions (Automação)
 
-| Componente     | Tecnologia/Arquivo         | Descrição |
-|----------------|---------------------------|-----------|
-| Scraping       | API (Gupy, Greenhouse)    | Coleta rápida e confiável |
-| Validação      | QualityGate (src/quality_gate.py) | Filtra vagas não-remotas, links quebrados, baixa relevância |
-| Orquestração   | src/pipeline.py           | Pipeline principal (bronze/silver/gold/notify) |
-| Notificação    | Telegram Bot API          | Envio de vagas validadas |
-| Processamento  | DuckDB, Parquet           | OLAP local, exportação |
-| Logging        | structlog                 | Logs estruturados |
-| Configuração   | dotenv (.env)             | Tokens e segredos |
+O pipeline executa automaticamente a cada 3 horas via GitHub Actions.
 
+### Configurar Secrets
 
-## 📊 Arquitetura do Pipeline
+Vá em **Settings > Secrets and variables > Actions** e adicione:
 
-### 🥉 Bronze (Raw)
-- Dados brutos coletados das APIs (JSON)
-- Metadados de coleta
+| Secret | Valor |
+|--------|-------|
+| `GOOGLE_API_KEY` | Sua chave Gemini |
+| `TELEGRAM_BOT_TOKEN` | Token do bot |
+| `TELEGRAM_CHAT_ID` | ID do grupo |
+| `PROXY_URL` | (Opcional) Proxy residencial |
 
-### 🥈 Silver (LLM/Validação)
-- Dados estruturados via LLM
-- Validados por schema Pydantic
+### Executar Manualmente
 
-### 🛡️ QualityGate
-- Filtro de vagas não-remotas, links quebrados, irrelevantes
-- Implementado em src/quality_gate.py
+1. Vá em **Actions > Job Scraping Pipeline**
+2. Clique em **Run workflow**
+3. Configure parâmetros (query, max_jobs, dry_run)
+4. Clique em **Run workflow**
 
-### 🥇 Gold (Curated)
-- Star Schema dimensional (DuckDB)
-- Exportação para Parquet
+---
 
-### 📲 Notificação
-- Apenas vagas aprovadas pelo QualityGate são enviadas ao Telegram
+## 🛠️ Tecnologias
 
-## 📈 Análises Disponíveis
+| Componente | Tecnologia | Descrição |
+|------------|------------|-----------|
+| **Scraping** | httpx + APIs | Coleta rápida e confiável |
+| **LLM** | Google Gemini | Extração estruturada de dados |
+| **Validação** | QualityGate + Pydantic | Filtros de qualidade |
+| **Storage** | DuckDB + Parquet | OLAP local |
+| **Notificação** | Telegram Bot API | Envio de vagas |
+| **CI/CD** | GitHub Actions | Automação completa |
+| **Logging** | structlog | Logs estruturados |
 
-```sql
--- Top skills mais demandadas
-SELECT * FROM vw_top_skills LIMIT 10;
-
--- Salários por cargo e senioridade
-SELECT * FROM vw_vagas_por_titulo;
-
--- Skills que mais aparecem com Python
-SELECT * FROM vw_skills_com_python;
-
--- Distribuição geográfica
-SELECT * FROM vw_vagas_por_regiao;
-```
-
-## ⚙️ Configuração
-
-### Variáveis de Ambiente
-
-```bash
-# LLM (escolha um)
-GOOGLE_API_KEY=...      # Gemini (recomendado)
-OPENAI_API_KEY=...      # OpenAI
-
-# Proxy Residencial (opcional mas recomendado)
-PROXY_URL=http://user:pass@host:port
-
-# Rate Limiting
-SCRAPE_DELAY_MIN=2
-SCRAPE_DELAY_MAX=5
-MAX_JOBS_PER_RUN=100
-```
-
-### GitHub Secrets (para Actions)
-
-- `GOOGLE_API_KEY`: Chave da API Gemini
-- `PROXY_URL`: URL do proxy residencial
-- `ALERT_WEBHOOK_URL`: (opcional) Webhook para alertas
-
+---
 
 ## 📁 Estrutura do Projeto
 
 ```
 pega-vagas/
+├── .github/workflows/     # GitHub Actions
+│   └── scrape.yaml        # Pipeline automático
 ├── src/
-│   ├── pipeline.py           # Pipeline principal (bronze/silver/gold/notify)
-│   ├── quality_gate.py       # QualityGate: filtro de vagas
-│   ├── notifications/        # Telegram notifier
-│   ├── ingestion/            # Scrapers de API
-│   ├── config/               # Empresas e settings
-│   ├── processing/           # LLM extraction
-│   ├── analytics/            # DuckDB transforms
-│   └── schemas/              # Modelos Pydantic
+│   ├── pipeline.py        # Orquestrador principal
+│   ├── quality_gate.py    # Filtros de qualidade
+│   ├── notifications/     # Telegram notifier
+│   ├── ingestion/         # Scrapers de API
+│   ├── config/            # Empresas e settings
+│   ├── processing/        # LLM extraction
+│   ├── analytics/         # DuckDB transforms
+│   └── schemas/           # Modelos Pydantic
 ├── data/
-│   ├── bronze/               # Dados brutos
-│   ├── silver/               # Dados processados
-│   └── gold/                 # Star Schema/Parquet
-└── tests/                    # Testes automatizados
+│   ├── bronze/            # Dados brutos
+│   ├── silver/            # Dados processados
+│   └── gold/              # Star Schema
+├── tests/                 # Testes automatizados
+├── config.yaml            # Configurações
+├── agents.md              # Contexto para agentes IA
+└── pyproject.toml         # Dependências
 ```
 
+---
+
+## 📊 Fontes de Dados
+
+| Plataforma | Método | Status |
+|------------|--------|--------|
+| **Gupy** | API v1 | ✅ Funcionando |
+| **Greenhouse** | API pública | ✅ Funcionando |
+| Lever | API | ❌ Migrado |
+| SmartRecruiters | API | ⚠️ Sem vagas BR |
+
+### Empresas Monitoradas
+
+**Gupy:** BTG Pactual, C6 Bank, Banco Inter, PicPay, iFood, Globo, Magazine Luiza, Ambev, Localiza, B3, e mais...
+
+**Greenhouse:** QuintoAndar, Gympass (Wellhub), Wildlife, ThoughtWorks, VTEX, Loft, Cloudwalk
+
+---
+
+## 🛡️ QualityGate
+
+O QualityGate filtra automaticamente vagas que não atendem aos critérios:
+
+### ✅ Aceitas
+- 100% remoto / Full remote / Remote first
+- Trabalho remoto / Home office
+- Anywhere in Brazil
+
+### ❌ Rejeitadas
+- Híbrido / Hybrid
+- Presencial / On-site
+- X dias no escritório
+- Residir em [cidade específica]
+
+---
+
+## 📈 Análises Disponíveis
+
+Após executar o pipeline, você pode fazer queries analíticas:
+
+```sql
+-- Top skills mais demandadas
+SELECT * FROM vw_top_skills LIMIT 10;
+
+-- Vagas por título e senioridade
+SELECT * FROM vw_vagas_por_titulo;
+
+-- Skills que aparecem com Python
+SELECT * FROM vw_skills_com_python;
+
+-- Distribuição por região
+SELECT * FROM vw_vagas_por_regiao;
+```
+
+---
+
+## 🧪 Testes
+
+```bash
+# Executar testes
+pytest tests/ -v
+
+# Com coverage
+pytest tests/ --cov=src
+
+# Lint
+ruff check src/ tests/
+
+# Type check
+mypy src/
+```
+
+---
 
 ## ⚖️ Conformidade LGPD
 
@@ -149,17 +220,37 @@ Este pipeline foi desenhado com **Privacy by Design**:
 - ✅ Não coleta dados sensíveis
 - ✅ Respeita rate limiting das plataformas
 
+---
+
+## 🤝 Contribuindo
+
+Contribuições são bem-vindas! Veja [CONTRIBUTING.md](CONTRIBUTING.md) para detalhes.
+
+```bash
+# Setup de desenvolvimento
+pip install -e ".[dev]"
+
+# Antes de commitar
+ruff check src/ tests/
+pytest tests/ -v
+```
+
+---
+
 ## 📄 Licença
 
 MIT License - veja [LICENSE](LICENSE) para detalhes.
 
 ---
 
-Desenvolvido com ❤️ para a comunidade de dados brasileira.
+## 📞 Suporte
+
+- 📖 **Documentação:** [agents.md](agents.md) - Contexto técnico detalhado
+- 🐛 **Issues:** [GitHub Issues](https://github.com/diegosantos-ai/pega-vagas/issues)
+- 💬 **Discussões:** [GitHub Discussions](https://github.com/diegosantos-ai/pega-vagas/discussions)
 
 ---
 
-### ℹ️ Observações
-- O QualityGate bloqueia vagas híbridas, links quebrados, títulos irrelevantes e oportunidades fora do Brasil.
-- Só vagas 100% remotas e relevantes chegam ao Telegram.
-- Veja agents.md para regras detalhadas de filtragem.
+<p align="center">
+  Desenvolvido com ❤️ para a comunidade de dados brasileira.
+</p>

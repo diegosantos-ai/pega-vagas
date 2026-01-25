@@ -16,24 +16,22 @@ import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import structlog
 from dotenv import load_dotenv
 
 from src.config.companies import (
-    get_all_companies,
-    get_companies_by_ats,
     ATSType,
+    get_companies_by_ats,
 )
 from src.ingestion.scrapers.api_scrapers import (
-    GupyAPIScraper,
     GreenhouseAPIScraper,
+    GupyAPIScraper,
     LeverAPIScraper,
     SmartRecruitersAPIScraper,
 )
-from src.processing.validators import is_valid_job_full
 from src.processing.normalizers import normalize_job_title, normalize_seniority
+from src.processing.validators import is_valid_job_full
 
 load_dotenv()
 logger = structlog.get_logger()
@@ -97,7 +95,7 @@ class SimplePipeline:
     def _load_sent_jobs(self):
         """Carrega lista de vagas já enviadas."""
         if self.sent_file.exists():
-            with open(self.sent_file, "r", encoding="utf-8") as f:
+            with open(self.sent_file, encoding="utf-8") as f:
                 data = json.load(f)
                 self.sent_jobs = set(data.get("sent", []))
         else:
@@ -358,7 +356,7 @@ class SimplePipeline:
             return 0
         
         try:
-            from src.notifications.telegram import TelegramNotifier, JobNotification
+            from src.notifications.telegram import JobNotification, TelegramNotifier
             
             notifier = TelegramNotifier()
             sent_count = 0
@@ -392,7 +390,7 @@ class SimplePipeline:
             return sent_count
             
         except Exception as e:
-            logger.error(f"Erro ao notificar Telegram", error=str(e))
+            logger.error("Erro ao notificar Telegram", error=str(e))
             return 0
     
     async def run(

@@ -8,11 +8,9 @@ Define interface comum e funcionalidades compartilhadas:
 """
 
 import json
-import random
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import structlog
 from playwright.async_api import Page
@@ -96,7 +94,7 @@ class BaseScraper(ABC):
     async def scrape_listings(
         self,
         query: str,
-        location: Optional[str] = None,
+        location: str | None = None,
         max_pages: int = 5,
     ) -> list[dict]:
         """
@@ -128,7 +126,7 @@ class BaseScraper(ABC):
     async def run(
         self,
         query: str,
-        location: Optional[str] = None,
+        location: str | None = None,
         max_jobs: int = 100,
     ) -> list[str]:
         """

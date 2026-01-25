@@ -9,8 +9,8 @@ Camoufox é um fork do Firefox otimizado para scraping, com:
 
 import asyncio
 import random
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional
 
 import structlog
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
@@ -31,7 +31,7 @@ class BrowserManager:
     def __init__(
         self,
         headless: bool = True,
-        proxy_url: Optional[str] = None,
+        proxy_url: str | None = None,
         slow_mo: int = 50,
     ):
         """
@@ -44,8 +44,8 @@ class BrowserManager:
         self.proxy_url = proxy_url
         self.slow_mo = slow_mo
         self._playwright = None
-        self._browser: Optional[Browser] = None
-        self._context: Optional[BrowserContext] = None
+        self._browser: Browser | None = None
+        self._context: BrowserContext | None = None
 
     async def __aenter__(self) -> "BrowserManager":
         await self.start()

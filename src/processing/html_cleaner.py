@@ -6,7 +6,6 @@ e extrai apenas o texto relevante do corpo da página.
 """
 
 import re
-from typing import Optional
 
 import structlog
 
@@ -63,7 +62,7 @@ def clean_html(
     return _truncate_smart(_clean_with_regex(html), max_chars)
 
 
-def _clean_with_trafilatura(html: str, include_tables: bool) -> Optional[str]:
+def _clean_with_trafilatura(html: str, include_tables: bool) -> str | None:
     """Usa trafilatura para extração de alto nível."""
     try:
         # Extrai título primeiro (trafilatura às vezes remove)
@@ -94,7 +93,7 @@ def _clean_with_trafilatura(html: str, include_tables: bool) -> Optional[str]:
         return None
 
 
-def _clean_with_bs4(html: str) -> Optional[str]:
+def _clean_with_bs4(html: str) -> str | None:
     """Usa BeautifulSoup para limpeza manual."""
     try:
         soup = BeautifulSoup(html, "html.parser")

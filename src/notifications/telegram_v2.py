@@ -14,7 +14,6 @@ import urllib.parse
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import httpx
 import structlog
@@ -32,14 +31,14 @@ class JobNotification:
     company: str
     url: str
     platform: str
-    location: Optional[str] = None
+    location: str | None = None
     work_model: str = "Remoto"
-    salary_min: Optional[float] = None
-    salary_max: Optional[float] = None
-    skills: Optional[list[str]] = None
-    published_date: Optional[str] = None
-    score: Optional[int] = None  # Score de relevância (0-100)
-    description_snippet: Optional[str] = None  # Trecho da descrição
+    salary_min: float | None = None
+    salary_max: float | None = None
+    skills: list[str] | None = None
+    published_date: str | None = None
+    score: int | None = None  # Score de relevância (0-100)
+    description_snippet: str | None = None  # Trecho da descrição
 
 
 class TelegramNotifierV2:
@@ -51,8 +50,8 @@ class TelegramNotifierV2:
 
     def __init__(
         self,
-        bot_token: Optional[str] = None,
-        chat_id: Optional[str] = None,
+        bot_token: str | None = None,
+        chat_id: str | None = None,
         seen_jobs_file: str = "data/.seen_jobs.json",
     ):
         """

@@ -9,7 +9,6 @@ Define regras de filtragem para:
 
 import re
 from datetime import datetime, timedelta
-from typing import Optional
 
 import structlog
 
@@ -87,7 +86,7 @@ BRAZIL_POSITIVE_PATTERNS = [
 ]
 
 
-def is_remote_work(text: str, modelo_trabalho: Optional[str] = None) -> bool:
+def is_remote_work(text: str, modelo_trabalho: str | None = None) -> bool:
     """
     Verifica se o texto indica trabalho 100% remoto.
     
@@ -131,7 +130,7 @@ def is_remote_work(text: str, modelo_trabalho: Optional[str] = None) -> bool:
 
 def is_brazil_location(
     text: str,
-    pais: Optional[str] = None,
+    pais: str | None = None,
     empresa_validada: bool = False
 ) -> bool:
     """
@@ -291,7 +290,7 @@ def filter_jobs(jobs: list[dict], empresa_validada: bool = False) -> list[dict]:
 # FILTRO DE DATA
 # =============================================================================
 
-def parse_date(date_value) -> Optional[datetime]:
+def parse_date(date_value) -> datetime | None:
     """
     Converte diferentes formatos de data para datetime.
     

@@ -3,10 +3,11 @@ Carregador de configuração centralizado.
 Lê config.yaml e fornece acesso tipado aos parâmetros.
 """
 
-import yaml
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import structlog
+import yaml
 
 logger = structlog.get_logger()
 
@@ -15,7 +16,7 @@ class ConfigLoader:
     """Gerencia configuração centralizada do projeto."""
 
     _instance = None
-    _config: Dict[str, Any] = {}
+    _config: dict[str, Any] = {}
 
     def __new__(cls):
         """Singleton pattern para garantir uma única instância."""
@@ -35,7 +36,7 @@ class ConfigLoader:
             return
 
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 self._config = yaml.safe_load(f) or {}
             logger.info(f"Configuração carregada de {config_path}")
         except Exception as e:
@@ -43,7 +44,7 @@ class ConfigLoader:
             self._config = self._get_default_config()
 
     @staticmethod
-    def _get_default_config() -> Dict[str, Any]:
+    def _get_default_config() -> dict[str, Any]:
         """Retorna configuração padrão."""
         return {
             "search_terms": {
@@ -92,7 +93,7 @@ class ConfigLoader:
 
         return value if value is not None else default
 
-    def get_search_terms(self) -> List[str]:
+    def get_search_terms(self) -> list[str]:
         """Retorna lista plana de todos os termos de busca."""
         search_terms = self.get("search_terms", {})
         all_terms = []
@@ -103,21 +104,21 @@ class ConfigLoader:
 
         return all_terms
 
-    def get_remote_patterns(self) -> tuple[List[str], List[str]]:
+    def get_remote_patterns(self) -> tuple[list[str], list[str]]:
         """Retorna padrões de remoto (positivos, negativos)."""
         qg = self.get("quality_gate", {})
         positive = qg.get("remote_positive_patterns", [])
         negative = qg.get("remote_negative_patterns", [])
         return positive, negative
 
-    def get_brazil_patterns(self) -> tuple[List[str], List[str]]:
+    def get_brazil_patterns(self) -> tuple[list[str], list[str]]:
         """Retorna padrões de localização Brasil (positivos, negativos)."""
         qg = self.get("quality_gate", {})
         positive = qg.get("brazil_positive_patterns", [])
         negative = qg.get("brazil_negative_patterns", [])
         return positive, negative
 
-    def get_tech_stack(self) -> Dict[str, int]:
+    def get_tech_stack(self) -> dict[str, int]:
         """Retorna dicionário de stack tecnológico com pontos."""
         qg = self.get("quality_gate", {})
         return qg.get("tech_stack_points", {})
@@ -134,7 +135,7 @@ class ConfigLoader:
         """Retorna máximo de vagas por execução."""
         return self.get("scraping.max_jobs_per_run", 100)
 
-    def get_platforms(self) -> List[str]:
+    def get_platforms(self) -> list[str]:
         """Retorna plataformas a executar."""
         return self.get("scraping.platforms", ["api"])
 
@@ -142,7 +143,7 @@ class ConfigLoader:
         """Retorna modelo LLM a usar."""
         return self.get("llm.model", "gemini-2.0-flash")
 
-    def get_telegram_config(self) -> Dict[str, Any]:
+    def get_telegram_config(self) -> dict[str, Any]:
         """Retorna configuração do Telegram."""
         return self.get("telegram", {})
 

@@ -5,7 +5,6 @@ Queries pré-definidas para análises comuns de mercado de trabalho.
 """
 
 from pathlib import Path
-from typing import Optional
 
 import duckdb
 import structlog
@@ -167,7 +166,7 @@ def export_to_parquet(
 def query_top_skills(
     db_path: str = "data/gold/vagas.duckdb",
     limit: int = 20,
-    categoria: Optional[str] = None,
+    categoria: str | None = None,
 ) -> list[dict]:
     """
     Retorna as skills mais demandadas.
