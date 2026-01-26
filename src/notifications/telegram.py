@@ -11,13 +11,13 @@ Setup:
 """
 
 import json
-import os
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 import httpx
 import structlog
+
 from src.config.settings import settings
 
 logger = structlog.get_logger()
@@ -74,8 +74,7 @@ class TelegramNotifier:
 
         if not self.chat_id:
             logger.warning(
-                "TELEGRAM_CHAT_ID não configurado. "
-                "Use get_updates() para descobrir seu chat_id"
+                "TELEGRAM_CHAT_ID não configurado. Use get_updates() para descobrir seu chat_id"
             )
 
         self.api_url = self.API_BASE.format(token=self.bot_token)
@@ -270,6 +269,7 @@ class TelegramNotifier:
 
             # Pequeno delay para não atingir rate limit
             import asyncio
+
             await asyncio.sleep(0.5)
 
         # Resumo final
@@ -352,4 +352,5 @@ async def setup_telegram():
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(setup_telegram())

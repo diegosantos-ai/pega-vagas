@@ -72,7 +72,7 @@ def _clean_with_trafilatura(html: str, include_tables: bool) -> str | None:
             h1 = soup.find("h1")
             if h1:
                 title = h1.get_text(strip=True) + "\n\n"
-        
+
         text = trafilatura_extract(
             html,
             include_tables=include_tables,
@@ -82,11 +82,11 @@ def _clean_with_trafilatura(html: str, include_tables: bool) -> str | None:
             deduplicate=True,
             favor_precision=False,  # Menos agressivo para preservar mais conteúdo
         )
-        
+
         # Adiciona título no início se não estiver presente
         if text and title and title.strip() not in text:
             text = title + text
-        
+
         return text
     except Exception as e:
         logger.debug(f"Trafilatura falhou: {e}")

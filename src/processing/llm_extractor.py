@@ -128,16 +128,18 @@ class GeminiClient(BaseLLMClient):
         self.types = types
         logger.info("Gemini client inicializado (novo SDK)", model=model)
 
-    async def extract(self, html_content: str, title_hint: str = None, company_hint: str = None) -> dict:
+    async def extract(
+        self, html_content: str, title_hint: str = None, company_hint: str = None
+    ) -> dict:
         """Extrai dados usando Gemini (novo SDK)."""
-        
+
         # Adiciona hints se disponíveis
         hints = ""
         if title_hint:
             hints += f"\n- Título da vaga: {title_hint}"
         if company_hint:
             hints += f"\n- Empresa: {company_hint}"
-        
+
         prompt = f"""{SYSTEM_PROMPT}
 {hints if hints else ""}
 
@@ -269,63 +271,68 @@ class LLMExtractor:
         for attempt in range(1, self.max_retries + 1):
             try:
                 # Passa hints para clientes que suportam (Gemini)
-                if hasattr(self.client, 'extract') and 'title_hint' in self.client.extract.__code__.co_varnames:
-                    raw_result = await self.client.extract(cleaned_text, title_hint=title_hint, company_hint=company_hint)
+                if (
+                    hasattr(self.client, "extract")
+                    and "title_hint" in self.client.extract.__code__.co_varnames
+                ):
+                    raw_result = await self.client.extract(
+                        cleaned_text, title_hint=title_hint, company_hint=company_hint
+                    )
                 else:
                     raw_result = await self.client.extract(cleaned_text)
 
                 # Se retornou lista, pega o primeiro elemento
                 if isinstance(raw_result, list):
                     raw_result = raw_result[0] if raw_result else {}
-                
+
                 # Heurística de correção: se o JSON for a vaga direta (sem wrapper)
-                if "vaga" not in raw_result and ("titulo" in raw_result or "titulo_original" in raw_result or "titulo_normalizado" in raw_result):
-                    raw_result = {
-                        "vaga": raw_result,
-                        "confianca": 0.8,
-                        "campos_incertos": []
-                    }
-                
+                if "vaga" not in raw_result and (
+                    "titulo" in raw_result
+                    or "titulo_original" in raw_result
+                    or "titulo_normalizado" in raw_result
+                ):
+                    raw_result = {"vaga": raw_result, "confianca": 0.8, "campos_incertos": []}
+
                 # Normalização de campos
                 vaga_dict = raw_result.get("vaga", raw_result)
-                
+
                 # Se vaga_dict também é lista
                 if isinstance(vaga_dict, list):
                     vaga_dict = vaga_dict[0] if vaga_dict else {}
-                
+
                 # Mapeia titulo -> titulo_original
                 if "titulo" in vaga_dict and "titulo_original" not in vaga_dict:
                     vaga_dict["titulo_original"] = vaga_dict.pop("titulo")
-                
+
                 # Se titulo_original ainda não existe, usa o hint
                 if "titulo_original" not in vaga_dict or not vaga_dict.get("titulo_original"):
                     vaga_dict["titulo_original"] = title_hint or "Título não informado"
-                
+
                 # Garante titulo_normalizado
                 if "titulo_normalizado" not in vaga_dict:
-                     vaga_dict["titulo_normalizado"] = "Outro"
-                     
+                    vaga_dict["titulo_normalizado"] = "Outro"
+
                 # Garante empresa (usa hint se disponível)
                 if "empresa" not in vaga_dict or not vaga_dict.get("empresa"):
                     vaga_dict["empresa"] = company_hint or "Empresa Confidencial"
-                
+
                 # Garante senioridade
                 if "senioridade" not in vaga_dict or vaga_dict["senioridade"] is None:
                     vaga_dict["senioridade"] = "Não Informada"
-                
+
                 # Normaliza modelo_de_trabalho -> modelo_trabalho
                 if "modelo_de_trabalho" in vaga_dict and "modelo_trabalho" not in vaga_dict:
                     vaga_dict["modelo_trabalho"] = vaga_dict.pop("modelo_de_trabalho")
-                
+
                 # Normaliza salario_base -> salario
                 if "salario_base" in vaga_dict and "salario" not in vaga_dict:
                     vaga_dict["salario"] = vaga_dict.pop("salario_base")
-                
+
                 # Atualiza raw_result se foi modificado via referência ou atribuição
                 if "vaga" in raw_result:
                     raw_result["vaga"] = vaga_dict
                 else:
-                    raw_result = {"vaga": vaga_dict, "confianca": 0.8, "campos_incertos": []}    
+                    raw_result = {"vaga": vaga_dict, "confianca": 0.8, "campos_incertos": []}
 
                 # 3. Valida com Pydantic
                 result = VagaExtractionResult.model_validate(raw_result)
@@ -336,9 +343,9 @@ class LLMExtractor:
                 if platform:
                     result.vaga.plataforma = platform
                 if title_hint and not result.vaga.titulo_original:
-                     result.vaga.titulo_original = title_hint
+                    result.vaga.titulo_original = title_hint
                 if company_hint and not result.vaga.empresa:
-                     result.vaga.empresa = company_hint
+                    result.vaga.empresa = company_hint
 
                 logger.info(
                     "Extração bem-sucedida",

@@ -228,4 +228,4 @@ Você receberá notificações no Telegram!
 
 ---
 
-**Desenvolvido com ❤️ para Diego Santos**
+**Desenvolvido por Diego Santos**

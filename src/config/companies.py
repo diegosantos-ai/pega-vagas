@@ -11,6 +11,7 @@ from enum import Enum
 
 class ATSType(Enum):
     """Tipos de ATS suportados."""
+
     GUPY = "gupy"
     GREENHOUSE = "greenhouse"
     LEVER = "lever"
@@ -22,6 +23,7 @@ class ATSType(Enum):
 @dataclass
 class Company:
     """Representa uma empresa alvo."""
+
     name: str
     ats: ATSType
     identifier: str  # ID ou token usado na API do ATS
@@ -69,29 +71,42 @@ GUPY_COMPANIES = [
     # --- Bancos e Fintechs ---
     # Nota: Itaú e BB usam sistemas próprios ou Workday, não Gupy
     Company(
-        "BTG Pactual", ATSType.GUPY, "btgpactual", "banco", 1, True,
-        "Cultura meritocrática, viés quantitativo"
+        "BTG Pactual",
+        ATSType.GUPY,
+        "btgpactual",
+        "banco",
+        1,
+        True,
+        "Cultura meritocrática, viés quantitativo",
     ),
     Company(
-        "C6 Bank", ATSType.GUPY, "c6bank", "fintech", 1, True,
-        "Crescimento acelerado, personalização de crédito"
+        "C6 Bank",
+        ATSType.GUPY,
+        "c6bank",
+        "fintech",
+        1,
+        True,
+        "Crescimento acelerado, personalização de crédito",
     ),
     Company("Banco Inter", ATSType.GUPY, "bancointer", "fintech", 1, True, "Super App, BH"),
     Company("PicPay", ATSType.GUPY, "picpay", "fintech", 1, True, "Big Data em tempo real"),
     Company("PagBank", ATSType.GUPY, "pagbank", "fintech", 2, True),
     Company("Neon", ATSType.GUPY, "neon", "fintech", 2, True, "Foco classes C e D"),
     Company("Will Bank", ATSType.GUPY, "willbank", "fintech", 2, True, "Fintech nordestina"),
-    
     # --- Tech Companies ---
     Company("iFood", ATSType.GUPY, "ifood", "tech", 1, True, "AI para logística, open source"),
     Company("Globo", ATSType.GUPY, "globo", "media", 1, True, "MediaTech, Big Data streaming"),
     Company("TOTVS", ATSType.GUPY, "totvs", "tech", 2, False, "Maior software ERP Brasil"),
     Company("RD Station", ATSType.GUPY, "rdstation", "tech", 1, True, "Floripa, cultura produto"),
-    
     # --- Varejo e Indústria ---
     Company(
-        "Magazine Luiza", ATSType.GUPY, "magazineluiza", "varejo", 1, True,
-        "LuizaLabs, case de transformação"
+        "Magazine Luiza",
+        ATSType.GUPY,
+        "magazineluiza",
+        "varejo",
+        1,
+        True,
+        "LuizaLabs, case de transformação",
     ),
     Company("Ambev", ATSType.GUPY, "ambev", "industria", 1, False, "App BEES, logística massiva"),
     Company("Ambev Tech", ATSType.GUPY, "ambevtech", "industria", 1, False, "Tech hub da Ambev"),
@@ -102,12 +117,16 @@ GUPY_COMPANIES = [
         "Grupo Boticário", ATSType.GUPY, "grupoboticario", "varejo", 1, True, "Beleza e cosméticos"
     ),
     Company(
-        "RaiaDrogasil", ATSType.GUPY, "raiadrogasil", "varejo", 1, True,
-        "Maior rede farmácias do Brasil"
+        "RaiaDrogasil",
+        ATSType.GUPY,
+        "raiadrogasil",
+        "varejo",
+        1,
+        True,
+        "Maior rede farmácias do Brasil",
     ),
     Company(
-        "Unilever", ATSType.GUPY, "unilever", "industria", 1, True,
-        "FMCG global, dados de consumo"
+        "Unilever", ATSType.GUPY, "unilever", "industria", 1, True, "FMCG global, dados de consumo"
     ),
     Company("Nestlé", ATSType.GUPY, "nestle", "industria", 1, True, "FMCG global, supply chain"),
     Company("Vale", ATSType.GUPY, "vale", "industria", 1, False, "Mineração, IoT massivo"),
@@ -115,19 +134,41 @@ GUPY_COMPANIES = [
         "Heineken", ATSType.GUPY, "heineken", "industria", 2, True, "Bebidas, dados consumidor"
     ),
     Company(
-        "Grupo Carrefour", ATSType.GUPY, "grupocarrefourbrasil", "varejo", 1, True,
-        "Varejo alimentar, Big Data"
+        "Grupo Carrefour",
+        ATSType.GUPY,
+        "grupocarrefourbrasil",
+        "varejo",
+        1,
+        True,
+        "Varejo alimentar, Big Data",
     ),
     Company("Siemens", ATSType.GUPY, "siemens", "industria", 1, True, "Tecnologia industrial, IoT"),
     Company("Vivo Telefônica", ATSType.GUPY, "vivo", "tech", 1, True, "Telecom, dados massivos"),
-    
     # --- Consultorias ---
-    Company("Stefanini", ATSType.GUPY, "stefanini", "consultoria", 3, True, "Multinacional brasileira TI"),
+    Company(
+        "Stefanini",
+        ATSType.GUPY,
+        "stefanini",
+        "consultoria",
+        3,
+        True,
+        "Multinacional brasileira TI",
+    ),
     Company("Semantix", ATSType.GUPY, "semantix", "consultoria", 2, True, "Big Data e IA"),
     Company("BHS", ATSType.GUPY, "bhs", "consultoria", 3, True, "Parceira Microsoft, MG"),
     Company("IBM", ATSType.GUPY, "ibm", "consultoria", 1, True, "BigTech, Watson AI"),
-    Company("Accenture", ATSType.GUPY, "accenture", "consultoria", 1, True, "Big Four consultoria, global"),
-    Company("Deloitte", ATSType.GUPY, "deloittebrasil", "consultoria", 1, True, "Big Four, analytics"),
+    Company(
+        "Accenture",
+        ATSType.GUPY,
+        "accenture",
+        "consultoria",
+        1,
+        True,
+        "Big Four consultoria, global",
+    ),
+    Company(
+        "Deloitte", ATSType.GUPY, "deloittebrasil", "consultoria", 1, True, "Big Four, analytics"
+    ),
 ]
 
 
@@ -137,22 +178,80 @@ GUPY_COMPANIES = [
 # =============================================================================
 GREENHOUSE_COMPANIES = [
     # --- Fintechs ---
-    Company("Nubank", ATSType.GREENHOUSE, "nubank", "fintech", 1, True, "Referência mundial, Clojure"),
+    Company(
+        "Nubank", ATSType.GREENHOUSE, "nubank", "fintech", 1, True, "Referência mundial, Clojure"
+    ),
     Company("Stone", ATSType.GREENHOUSE, "stone", "fintech", 1, True, "Cultura 'brutal facts'"),
-    Company("XP Inc", ATSType.GREENHOUSE, "xpinc", "fintech", 1, True, "Alta performance, Databricks"),
-    Company("Creditas", ATSType.GREENHOUSE, "creditas", "fintech", 1, True, "Empréstimo com garantia, ML para scoring"),
-    
+    Company(
+        "XP Inc", ATSType.GREENHOUSE, "xpinc", "fintech", 1, True, "Alta performance, Databricks"
+    ),
+    Company(
+        "Creditas",
+        ATSType.GREENHOUSE,
+        "creditas",
+        "fintech",
+        1,
+        True,
+        "Empréstimo com garantia, ML para scoring",
+    ),
     # --- Tech Companies ---
-    Company("QuintoAndar", ATSType.GREENHOUSE, "quintoandar", "proptech", 1, True, "Precificação imóveis"),
-    Company("Wildlife Studios", ATSType.GREENHOUSE, "wildlifestudios", "games", 1, True, "Games, telemetria global"),
+    Company(
+        "QuintoAndar",
+        ATSType.GREENHOUSE,
+        "quintoandar",
+        "proptech",
+        1,
+        True,
+        "Precificação imóveis",
+    ),
+    Company(
+        "Wildlife Studios",
+        ATSType.GREENHOUSE,
+        "wildlifestudios",
+        "games",
+        1,
+        True,
+        "Games, telemetria global",
+    ),
     Company("Gympass (Wellhub)", ATSType.GREENHOUSE, "gympass", "tech", 1, True, "Global, inglês"),
-    Company("Hotmart", ATSType.GREENHOUSE, "hotmart", "tech", 1, True, "Unicórnio BH, economia criadores"),
-    Company("Loggi", ATSType.GREENHOUSE, "loggi", "logistica", 1, True, "Logística, algoritmos roteirização"),
+    Company(
+        "Hotmart",
+        ATSType.GREENHOUSE,
+        "hotmart",
+        "tech",
+        1,
+        True,
+        "Unicórnio BH, economia criadores",
+    ),
+    Company(
+        "Loggi",
+        ATSType.GREENHOUSE,
+        "loggi",
+        "logistica",
+        1,
+        True,
+        "Logística, algoritmos roteirização",
+    ),
     Company("Neoway", ATSType.GREENHOUSE, "neoway", "tech", 1, True, "Big Data B2B, Floripa"),
-    
     # --- Consultorias ---
-    Company("ThoughtWorks", ATSType.GREENHOUSE, "thoughtworks", "consultoria", 1, True, "Excelência engenharia"),
-    Company("CI&T", ATSType.GREENHOUSE, "ciaboratoryinc", "consultoria", 1, True, "Multinacional BR, Lean Digital"),
+    Company(
+        "ThoughtWorks",
+        ATSType.GREENHOUSE,
+        "thoughtworks",
+        "consultoria",
+        1,
+        True,
+        "Excelência engenharia",
+    ),
+    Company(
+        "CI&T",
+        ATSType.GREENHOUSE,
+        "ciaboratoryinc",
+        "consultoria",
+        1,
+        True,
+        "Multinacional BR, Lean Digital",
+    ),
 ]
 
 
@@ -174,8 +273,24 @@ LEVER_COMPANIES = [
 # API: https://api.smartrecruiters.com/v1/companies/{id}/postings?country=br
 # =============================================================================
 SMARTRECRUITERS_COMPANIES = [
-    Company("Serasa Experian", ATSType.SMARTRECRUITERS, "serasaexperian", "financeiro", 1, False, "Bureau de crédito"),
-    Company("Keyrus Brasil", ATSType.SMARTRECRUITERS, "keyrus", "consultoria", 2, True, "Data Intelligence"),
+    Company(
+        "Serasa Experian",
+        ATSType.SMARTRECRUITERS,
+        "serasaexperian",
+        "financeiro",
+        1,
+        False,
+        "Bureau de crédito",
+    ),
+    Company(
+        "Keyrus Brasil",
+        ATSType.SMARTRECRUITERS,
+        "keyrus",
+        "consultoria",
+        2,
+        True,
+        "Data Intelligence",
+    ),
 ]
 
 
@@ -184,9 +299,15 @@ SMARTRECRUITERS_COMPANIES = [
 # Requer interceptação de requests
 # =============================================================================
 WORKDAY_COMPANIES = [
-    Company("Bradesco", ATSType.WORKDAY, "bradesco", "banco", 1, False, "Azure, cultura tradicional"),
-    Company("Santander Brasil", ATSType.WORKDAY, "santander", "banco", 1, False, "Integração global"),
-    Company("Natura &Co", ATSType.WORKDAY, "naturaco", "varejo", 2, False, "Cosméticos, dados globais"),
+    Company(
+        "Bradesco", ATSType.WORKDAY, "bradesco", "banco", 1, False, "Azure, cultura tradicional"
+    ),
+    Company(
+        "Santander Brasil", ATSType.WORKDAY, "santander", "banco", 1, False, "Integração global"
+    ),
+    Company(
+        "Natura &Co", ATSType.WORKDAY, "naturaco", "varejo", 2, False, "Cosméticos, dados globais"
+    ),
     Company("Avanade", ATSType.WORKDAY, "avanade", "consultoria", 2, True, "Microsoft/Accenture"),
 ]
 
@@ -195,7 +316,9 @@ WORKDAY_COMPANIES = [
 # LINKEDIN JOBS - Fallback e empresas sem ATS conhecido
 # =============================================================================
 LINKEDIN_COMPANIES = [
-    Company("Mercado Livre", ATSType.LINKEDIN, "mercadolibre", "tech", 1, True, "Maior AL, Eightfold"),
+    Company(
+        "Mercado Livre", ATSType.LINKEDIN, "mercadolibre", "tech", 1, True, "Maior AL, Eightfold"
+    ),
     Company("Google Brasil", ATSType.LINKEDIN, "google", "tech", 1, True, "BigTech"),
     Company("Microsoft Brasil", ATSType.LINKEDIN, "microsoft", "tech", 1, True, "BigTech"),
     Company("Amazon Brasil", ATSType.LINKEDIN, "amazon", "tech", 1, True, "BigTech, AWS"),
@@ -211,12 +334,12 @@ LINKEDIN_COMPANIES = [
 def get_all_companies() -> list[Company]:
     """Retorna todas as empresas configuradas."""
     return (
-        GUPY_COMPANIES +
-        GREENHOUSE_COMPANIES +
-        LEVER_COMPANIES +
-        SMARTRECRUITERS_COMPANIES +
-        WORKDAY_COMPANIES +
-        LINKEDIN_COMPANIES
+        GUPY_COMPANIES
+        + GREENHOUSE_COMPANIES
+        + LEVER_COMPANIES
+        + SMARTRECRUITERS_COMPANIES
+        + WORKDAY_COMPANIES
+        + LINKEDIN_COMPANIES
     )
 
 

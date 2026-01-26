@@ -133,7 +133,8 @@ def populate_dim_tempo(conn: duckdb.DuckDBPyConnection, start_date: date, end_da
         start_date: Data inicial
         end_date: Data final
     """
-    conn.execute("""
+    conn.execute(
+        """
         INSERT OR IGNORE INTO dim_tempo
         SELECT
             CAST(strftime(d, '%Y%m%d') AS INTEGER) as tempo_sk,
@@ -154,7 +155,9 @@ def populate_dim_tempo(conn: duckdb.DuckDBPyConnection, start_date: date, end_da
             END as dia_semana_nome,
             EXTRACT(DOW FROM d) IN (0, 6) as is_fim_semana
         FROM generate_series(?, ?, INTERVAL 1 DAY) as t(d)
-    """, [start_date, end_date])
+    """,
+        [start_date, end_date],
+    )
 
     logger.debug("dim_tempo populada", start=start_date, end=end_date)
 
@@ -171,23 +174,23 @@ def get_or_create_empresa(
 
     # Tenta encontrar existente
     result = conn.execute(
-        "SELECT empresa_sk FROM dim_empresa WHERE nome_normalizado = ?",
-        [nome_normalizado]
+        "SELECT empresa_sk FROM dim_empresa WHERE nome_normalizado = ?", [nome_normalizado]
     ).fetchone()
 
     if result:
         return result[0]
 
     # Cria novo
-    result = conn.execute(
-        "SELECT COALESCE(MAX(empresa_sk), 0) + 1 FROM dim_empresa"
-    ).fetchone()
+    result = conn.execute("SELECT COALESCE(MAX(empresa_sk), 0) + 1 FROM dim_empresa").fetchone()
     new_sk = result[0]
 
-    conn.execute("""
+    conn.execute(
+        """
         INSERT INTO dim_empresa (empresa_sk, nome, nome_normalizado, setor, primeiro_registro)
         VALUES (?, ?, ?, ?, CURRENT_DATE)
-    """, [new_sk, nome.strip(), nome_normalizado, setor])
+    """,
+        [new_sk, nome.strip(), nome_normalizado, setor],
+    )
 
     return new_sk
 
@@ -202,10 +205,13 @@ def get_or_create_localidade(
     Obtém ou cria uma localidade na dimensão, retornando a surrogate key.
     """
     # Tenta encontrar existente
-    result = conn.execute("""
+    result = conn.execute(
+        """
         SELECT localidade_sk FROM dim_localidade
         WHERE cidade IS NOT DISTINCT FROM ? AND estado IS NOT DISTINCT FROM ? AND pais = ?
-    """, [cidade, estado, pais]).fetchone()
+    """,
+        [cidade, estado, pais],
+    ).fetchone()
 
     if result:
         return result[0]
@@ -219,10 +225,13 @@ def get_or_create_localidade(
     ).fetchone()
     new_sk = result[0]
 
-    conn.execute("""
+    conn.execute(
+        """
         INSERT INTO dim_localidade (localidade_sk, cidade, estado, pais, regiao)
         VALUES (?, ?, ?, ?, ?)
-    """, [new_sk, cidade, estado, pais, regiao])
+    """,
+        [new_sk, cidade, estado, pais, regiao],
+    )
 
     return new_sk
 
@@ -269,18 +278,11 @@ def load_to_gold(
             confianca = vaga_data.get("confianca", 1.0)
 
             # Resolve surrogate keys
-            empresa_sk = get_or_create_empresa(
-                conn,
-                vaga["empresa"],
-                vaga.get("setor_empresa")
-            )
+            empresa_sk = get_or_create_empresa(conn, vaga["empresa"], vaga.get("setor_empresa"))
 
             loc = vaga.get("localidade") or {}
             localidade_sk = get_or_create_localidade(
-                conn,
-                loc.get("cidade"),
-                loc.get("estado"),
-                loc.get("pais", "Brasil")
+                conn, loc.get("cidade"), loc.get("estado"), loc.get("pais", "Brasil")
             )
 
             # Tempo SK baseado na data de coleta
@@ -292,7 +294,7 @@ def load_to_gold(
                 data_coleta = datetime.fromisoformat(
                     str(raw_data_coleta) if raw_data_coleta else datetime.now().isoformat()
                 )
-            
+
             # Ensure it's a datetime for consistency if needed, or just use it
             # But the code below uses strftime, which works on date too
             tempo_sk = int(data_coleta.strftime("%Y%m%d"))
@@ -304,13 +306,12 @@ def load_to_gold(
             salario = vaga.get("salario") or {}
 
             # Próximo SK para vaga
-            result = conn.execute(
-                "SELECT COALESCE(MAX(vaga_sk), 0) + 1 FROM fact_vagas"
-            ).fetchone()
+            result = conn.execute("SELECT COALESCE(MAX(vaga_sk), 0) + 1 FROM fact_vagas").fetchone()
             vaga_sk = result[0]
 
             # Insere na fact
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO fact_vagas (
                     vaga_sk, tempo_sk, empresa_sk, localidade_sk,
                     titulo_original, titulo_normalizado, senioridade, modelo_trabalho,
@@ -319,24 +320,29 @@ def load_to_gold(
                     skills, anos_experiencia_min, descricao_resumida, beneficios,
                     data_coleta, confianca_extracao
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, [
-                vaga_sk, tempo_sk, empresa_sk, localidade_sk,
-                vaga.get("titulo_original", ""),
-                vaga.get("titulo_normalizado", "Outro"),
-                vaga.get("senioridade", "Pleno"),
-                vaga.get("modelo_trabalho", "Presencial"),
-                vaga.get("plataforma"),
-                vaga.get("url_origem"),
-                salario.get("valor_minimo"),
-                salario.get("valor_maximo"),
-                salario.get("moeda", "BRL"),
-                vaga.get("skills", []),
-                vaga.get("anos_experiencia_min"),
-                vaga.get("descricao_resumida", ""),
-                vaga.get("beneficios", []),
-                data_coleta,
-                confianca,
-            ])
+            """,
+                [
+                    vaga_sk,
+                    tempo_sk,
+                    empresa_sk,
+                    localidade_sk,
+                    vaga.get("titulo_original", ""),
+                    vaga.get("titulo_normalizado", "Outro"),
+                    vaga.get("senioridade", "Pleno"),
+                    vaga.get("modelo_trabalho", "Presencial"),
+                    vaga.get("plataforma"),
+                    vaga.get("url_origem"),
+                    salario.get("valor_minimo"),
+                    salario.get("valor_maximo"),
+                    salario.get("moeda", "BRL"),
+                    vaga.get("skills", []),
+                    vaga.get("anos_experiencia_min"),
+                    vaga.get("descricao_resumida", ""),
+                    vaga.get("beneficios", []),
+                    data_coleta,
+                    confianca,
+                ],
+            )
 
             inserted += 1
 

@@ -25,16 +25,16 @@ class TestStarSchemaCreation:
     def test_create_tables(self, temp_db):
         """Testa criação das tabelas do Star Schema."""
         conn, _ = temp_db
-        
+
         # Executa DDL
         for statement in STAR_SCHEMA_DDL.split(";"):
             if statement.strip():
                 conn.execute(statement)
-        
+
         # Verifica tabelas criadas
         tables = conn.execute("SHOW TABLES").fetchall()
         table_names = [t[0] for t in tables]
-        
+
         assert "dim_tempo" in table_names
         assert "dim_empresa" in table_names
         assert "dim_localidade" in table_names
@@ -43,15 +43,15 @@ class TestStarSchemaCreation:
     def test_dim_tempo_columns(self, temp_db):
         """Testa colunas da dimensão tempo."""
         conn, _ = temp_db
-        
+
         for statement in STAR_SCHEMA_DDL.split(";"):
             if statement.strip():
                 conn.execute(statement)
-        
+
         # Verifica estrutura
         columns = conn.execute("DESCRIBE dim_tempo").fetchall()
         column_names = [c[0] for c in columns]
-        
+
         assert "tempo_sk" in column_names
         assert "data" in column_names
         assert "ano" in column_names
@@ -60,14 +60,14 @@ class TestStarSchemaCreation:
     def test_fact_vagas_columns(self, temp_db):
         """Testa colunas da tabela fato."""
         conn, _ = temp_db
-        
+
         for statement in STAR_SCHEMA_DDL.split(";"):
             if statement.strip():
                 conn.execute(statement)
-        
+
         columns = conn.execute("DESCRIBE fact_vagas").fetchall()
         column_names = [c[0] for c in columns]
-        
+
         assert "vaga_sk" in column_names
         assert "tempo_sk" in column_names
         assert "empresa_sk" in column_names
@@ -81,17 +81,17 @@ class TestDimensionInserts:
     def test_insert_empresa(self, temp_db):
         """Testa inserção de empresa."""
         conn, _ = temp_db
-        
+
         for statement in STAR_SCHEMA_DDL.split(";"):
             if statement.strip():
                 conn.execute(statement)
-        
+
         # Insere empresa
         conn.execute("""
             INSERT INTO dim_empresa (empresa_sk, nome, nome_normalizado, setor)
             VALUES (1, 'Nubank', 'nubank', 'Fintech')
         """)
-        
+
         # Verifica
         result = conn.execute("SELECT * FROM dim_empresa WHERE empresa_sk = 1").fetchone()
         assert result[1] == "Nubank"
@@ -100,16 +100,16 @@ class TestDimensionInserts:
     def test_insert_localidade(self, temp_db):
         """Testa inserção de localidade."""
         conn, _ = temp_db
-        
+
         for statement in STAR_SCHEMA_DDL.split(";"):
             if statement.strip():
                 conn.execute(statement)
-        
+
         conn.execute("""
             INSERT INTO dim_localidade (localidade_sk, cidade, estado, pais, regiao)
             VALUES (1, 'São Paulo', 'SP', 'Brasil', 'Sudeste')
         """)
-        
+
         result = conn.execute("SELECT * FROM dim_localidade WHERE localidade_sk = 1").fetchone()
         assert result[1] == "São Paulo"
         assert result[2] == "SP"
@@ -121,11 +121,11 @@ class TestSkillsArray:
     def test_insert_skills_array(self, temp_db):
         """Testa inserção de skills como array."""
         conn, _ = temp_db
-        
+
         for statement in STAR_SCHEMA_DDL.split(";"):
             if statement.strip():
                 conn.execute(statement)
-        
+
         # Insere dependências
         conn.execute("""
             INSERT INTO dim_tempo (tempo_sk, data, ano, trimestre, mes, semana, dia_semana, dia_semana_nome, is_fim_semana)
@@ -139,7 +139,7 @@ class TestSkillsArray:
             INSERT INTO dim_localidade (localidade_sk, pais)
             VALUES (1, 'Brasil')
         """)
-        
+
         # Insere vaga com skills
         conn.execute("""
             INSERT INTO fact_vagas (
@@ -153,7 +153,7 @@ class TestSkillsArray:
                 ['Python', 'SQL', 'AWS', 'Spark'], NOW()
             )
         """)
-        
+
         # Verifica skills
         result = conn.execute("SELECT skills FROM fact_vagas WHERE vaga_sk = 1").fetchone()
         skills = result[0]
@@ -164,18 +164,18 @@ class TestSkillsArray:
     def test_unnest_skills(self, temp_db):
         """Testa UNNEST de skills para análise."""
         conn, _ = temp_db
-        
+
         for statement in STAR_SCHEMA_DDL.split(";"):
             if statement.strip():
                 conn.execute(statement)
-        
+
         # Setup
         conn.execute("""
             INSERT INTO dim_tempo VALUES (1, '2026-01-15', 2026, 1, 1, 3, 4, 'Quinta', false)
         """)
         conn.execute("INSERT INTO dim_empresa VALUES (1, 'Test', 'test', NULL, NULL)")
         conn.execute("INSERT INTO dim_localidade VALUES (1, NULL, NULL, 'Brasil', NULL)")
-        
+
         # Insere 2 vagas
         conn.execute("""
             INSERT INTO fact_vagas (vaga_sk, tempo_sk, empresa_sk, localidade_sk,
@@ -184,7 +184,7 @@ class TestSkillsArray:
                 (1, 1, 1, 1, 'DE', 'Data Engineer', 'Senior', 'Remoto', ['Python', 'SQL'], NOW()),
                 (2, 1, 1, 1, 'DS', 'Data Scientist', 'Pleno', 'Remoto', ['Python', 'R'], NOW())
         """)
-        
+
         # Conta skills
         result = conn.execute("""
             SELECT skill, COUNT(*) as cnt
@@ -192,7 +192,7 @@ class TestSkillsArray:
             GROUP BY skill
             ORDER BY cnt DESC
         """).fetchall()
-        
+
         # Python aparece em 2 vagas
         python_count = next(r[1] for r in result if r[0] == "Python")
         assert python_count == 2

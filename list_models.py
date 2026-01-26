@@ -1,5 +1,5 @@
-
 import os
+
 import google.generativeai as genai
 from dotenv import load_dotenv
 
@@ -9,5 +9,5 @@ genai.configure(api_key=api_key)
 
 print("Listando modelos...")
 for m in genai.list_models():
-    if 'generateContent' in m.supported_generation_methods:
+    if "generateContent" in m.supported_generation_methods:
         print(f"Nome: {m.name}")

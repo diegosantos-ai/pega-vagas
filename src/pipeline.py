@@ -1,4 +1,3 @@
-
 """
 CLI principal do pipeline Pega-Vagas.
 
@@ -8,6 +7,7 @@ Uso:
     python -m src.pipeline gold
     python -m src.pipeline run  # Executa tudo
 """
+
 import argparse
 import asyncio
 import json
@@ -129,6 +129,7 @@ async def run_bronze(query: str, max_jobs: int, platform: str) -> list[str]:
                 if platform == "linkedin":
                     try:
                         from src.ingestion.scrapers.linkedin import LinkedInScraper
+
                         scraper = LinkedInScraper(browser)
                         files = await scraper.run(query=query, max_jobs=max_jobs)
                         saved_files.extend(files)
@@ -168,9 +169,9 @@ async def run_silver() -> int:
             # Normaliza diferentes formatos de dados bronze:
             # 1. Browser scraper: {html, url, title, company, _metadata}
             # 2. API scraper: {content/description, absolute_url/url, title/name, _metadata}
-            
+
             metadata = data.get("_metadata", {})
-            
+
             # Obtém HTML/conteúdo
             html = data.get("html", "")
             if not html:
@@ -179,7 +180,7 @@ async def run_silver() -> int:
                 name = data.get("name", data.get("title", ""))
                 location = data.get("location", {})
                 loc_name = location.get("name", "") if isinstance(location, dict) else str(location)
-                
+
                 if content or name:
                     # Cria um HTML mínimo para o LLM processar
                     html = f"""
@@ -187,7 +188,7 @@ async def run_silver() -> int:
                     <p><strong>Localização:</strong> {loc_name}</p>
                     <div>{content}</div>
                     """
-            
+
             if not html:
                 logger.debug(f"Sem conteúdo para processar: {json_file.name}")
                 continue
@@ -287,24 +288,26 @@ async def run_notify(platform: str = "all") -> int:
 
             vaga = data.get("vaga", data)
 
-
-
-
             # QualityGate: valida vaga antes de notificar
             # self.check_links=False por padrão para não bloquear vagas com 403 (comum em api cleaners)
             gate = QualityGate(check_links=False)
-            
-            avaliacao = gate.evaluate({
-                "url": vaga.get("url_origem", ""),
-                "title": vaga.get("titulo_normalizado", vaga.get("titulo_original", "")),
-                "description": vaga.get("descricao", ""),
-                "company": vaga.get("empresa", ""),
-                "original_location": vaga.get("localidade", "")
-            })
+
+            avaliacao = gate.evaluate(
+                {
+                    "url": vaga.get("url_origem", ""),
+                    "title": vaga.get("titulo_normalizado", vaga.get("titulo_original", "")),
+                    "description": vaga.get("descricao", ""),
+                    "company": vaga.get("empresa", ""),
+                    "original_location": vaga.get("localidade", ""),
+                    "work_model": vaga.get("modelo_trabalho", ""),
+                }
+            )
             if not avaliacao.is_valid:
-                logger.debug(f"QualityGate rejeitou: {vaga.get('titulo_original')} ({avaliacao.rejection_reason})")
+                logger.debug(
+                    f"QualityGate rejeitou: {vaga.get('titulo_original')} ({avaliacao.rejection_reason})"
+                )
                 continue
-            
+
             if avaliacao.score < 40:
                 logger.debug(f"Score baixo ({avaliacao.score}): {vaga.get('titulo_original')}")
                 continue
@@ -312,7 +315,7 @@ async def run_notify(platform: str = "all") -> int:
             # Extração segura de campos complexos
             loc = vaga.get("localidade")
             city = loc.get("cidade", "") if isinstance(loc, dict) else str(loc) if loc else ""
-            
+
             sal = vaga.get("salario")
             s_min = sal.get("valor_minimo") if isinstance(sal, dict) else None
             s_max = sal.get("valor_maximo") if isinstance(sal, dict) else None
@@ -431,4 +434,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

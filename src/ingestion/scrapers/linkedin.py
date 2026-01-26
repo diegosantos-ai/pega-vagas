@@ -20,7 +20,7 @@ logger = structlog.get_logger()
 class LinkedInScraper(BaseScraper):
     """
     Scraper para LinkedIn (Public Jobs).
-    
+
     Filtros de URL úteis:
     - f_WT=2: Remoto
     - f_WT=1: Presencial
@@ -29,7 +29,7 @@ class LinkedInScraper(BaseScraper):
     """
 
     platform_name = "linkedin"
-    
+
     # URL base de busca (filtros: Brasil + Remoto)
     search_url = (
         "https://www.linkedin.com/jobs/search?"
@@ -45,16 +45,14 @@ class LinkedInScraper(BaseScraper):
     # Seletores da interface pública (podem mudar com frequência)
     SELECTORS = {
         # Lista de cards
-        "job_card": "li:has(.base-card)", 
+        "job_card": "li:has(.base-card)",
         "card_link": "a.base-card__full-link",
         "card_title": ".base-search-card__title",
         "card_company": ".base-search-card__subtitle",
         "card_location": ".job-search-card__location",
         "card_date": "time",
-        
         # Botão "Ver mais vagas" (scroll infinito ou botão)
         "load_more": "button.infinite-scroller__show-more-button",
-        
         # Detalhes (na página da vaga)
         "detail_title": "h1.top-card-layout__title",
         "detail_company": "a.top-card-layout__company-url",
@@ -71,19 +69,19 @@ class LinkedInScraper(BaseScraper):
         listings = []
         # Monta URL (adiciona aspas na query para exatidão, se desejar)
         search_url = self.search_url.format(query=query)
-        
+
         logger.info("Iniciando busca LinkedIn", query=query, url=search_url)
 
         async with self.browser.get_page() as page:
             await self._navigate_with_retry(page, search_url)
             await humanize_delay(2.0, 4.0)
-            
+
             # Tenta carregar mais vagas (scroll + click)
             # O LinkedIn publico carrega ~25 vagas inicialmente
             for _ in range(max_pages):
                 await humanize_scroll(page, scroll_count=5)
                 await humanize_delay(1.5, 3.0)
-                
+
                 # Tenta clicar em "Ver mais" se existir
                 try:
                     load_more = await page.query_selector(self.SELECTORS["load_more"])
@@ -102,14 +100,14 @@ class LinkedInScraper(BaseScraper):
                     # Título
                     title_el = await card.query_selector(self.SELECTORS["card_title"])
                     title = await title_el.inner_text() if title_el else "N/A"
-                    
+
                     # Link
                     link_el = await card.query_selector(self.SELECTORS["card_link"])
                     url = await link_el.get_attribute("href") if link_el else None
-                    
+
                     if not url:
                         continue
-                        
+
                     # Remove tracking params do URL
                     if "?" in url:
                         url = url.split("?")[0]
@@ -117,13 +115,15 @@ class LinkedInScraper(BaseScraper):
                     # Empresa
                     company_el = await card.query_selector(self.SELECTORS["card_company"])
                     company = await company_el.inner_text() if company_el else "N/A"
-                    
-                    listings.append({
-                        "title": title.strip(),
-                        "company": company.strip(),
-                        "url": url,
-                        "work_model": "Remoto" # Forçado pelo filtro f_WT=2
-                    })
+
+                    listings.append(
+                        {
+                            "title": title.strip(),
+                            "company": company.strip(),
+                            "url": url,
+                            "work_model": "Remoto",  # Forçado pelo filtro f_WT=2
+                        }
+                    )
 
                 except Exception as e:
                     logger.debug(f"Erro ao extrair card LinkedIn: {e}")
@@ -133,7 +133,7 @@ class LinkedInScraper(BaseScraper):
 
     async def scrape_job_detail(self, url: str) -> dict:
         logger.debug("Extraindo detalhes LinkedIn", url=url)
-        
+
         async with self.browser.get_page() as page:
             try:
                 await self._navigate_with_retry(page, url)
@@ -149,7 +149,7 @@ class LinkedInScraper(BaseScraper):
 
             # LinkedIn detalhe público as vezes pede login/modal, vamos tentar fechar ou ignorar
             await humanize_delay(2.0, 3.0)
-            
+
             # Tenta expandir descrição se tiver botão "Ver mais"
             try:
                 expand_btn = await page.query_selector("button.show-more-less-html__button")
@@ -160,7 +160,7 @@ class LinkedInScraper(BaseScraper):
                 pass
 
             html = await page.content()
-            
+
             # Tenta extrair título para confirmar sucesso
             title_el = await page.query_selector(self.SELECTORS["detail_title"])
             title = await title_el.inner_text() if title_el else "N/A"

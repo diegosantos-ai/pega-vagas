@@ -14,6 +14,7 @@ logger = logging.getLogger("QualityGate_v2")
 
 class JobScore(BaseModel):
     """Modelo de saída da avaliação de qualidade."""
+
     is_valid: bool
     score: int = Field(ge=0, le=100)
     rejection_reason: str | None = None
@@ -24,7 +25,7 @@ class JobScore(BaseModel):
 class QualityGateV2:
     """
     Sistema de scoring para vagas com regras configuráveis.
-    
+
     Regras principais:
     1. REMOTO é obrigatório (regra de ouro)
     2. Deve estar no Brasil ou ser totalmente remoto
@@ -35,7 +36,7 @@ class QualityGateV2:
         self,
         target_roles: list[str] = None,
         min_score_threshold: int = 50,
-        strict_remote: bool = True
+        strict_remote: bool = True,
     ):
         """
         Args:
@@ -142,7 +143,7 @@ class QualityGateV2:
         """
         Verifica se a vaga é realmente 100% remota.
         Retorna (is_remote, flags)
-        
+
         REGRA DE OURO: Se mencionar híbrido/presencial, REJEITA SEMPRE.
         """
         text_blob = (title + " " + description).lower()
@@ -319,7 +320,7 @@ class QualityGateV2:
     def evaluate(self, job_data: dict) -> JobScore:
         """
         Função principal de avaliação.
-        
+
         job_data esperado:
         {
             "url": "...",

@@ -75,7 +75,7 @@ class ConfigLoader:
     def get(self, key: str, default: Any = None) -> Any:
         """
         Obtém valor de configuração por chave (suporta notação de ponto).
-        
+
         Exemplos:
             config.get("quality_gate.min_score_threshold")
             config.get("schedule.frequency_hours")

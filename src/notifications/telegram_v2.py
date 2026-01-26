@@ -72,8 +72,7 @@ class TelegramNotifierV2:
 
         if not self.chat_id:
             logger.warning(
-                "TELEGRAM_CHAT_ID não configurado. "
-                "Use get_updates() para descobrir seu chat_id"
+                "TELEGRAM_CHAT_ID não configurado. Use get_updates() para descobrir seu chat_id"
             )
 
         self.api_url = self.API_BASE.format(token=self.bot_token)

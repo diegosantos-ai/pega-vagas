@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Literal
 
@@ -10,11 +9,8 @@ class Settings(BaseSettings):
     Configurações globais do projeto validadas pelo Pydantic.
     Lê do arquivo .env automaticamente.
     """
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
-    )
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # --- LLM ---
     GOOGLE_API_KEY: str | None = None
@@ -26,11 +22,11 @@ class Settings(BaseSettings):
 
     # --- Proxy ---
     PROXY_URL: str | None = None
-    
+
     # --- Paths ---
     BASE_DIR: Path = Path(__file__).parent.parent.parent
     DATA_DIR: Path = BASE_DIR / "data"
-    
+
     # --- Pipeline ---
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 

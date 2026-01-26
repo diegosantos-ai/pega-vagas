@@ -94,7 +94,8 @@ class BaseAPIScraper(ABC):
                 if query:
                     query_lower = query.lower()
                     jobs = [
-                        j for j in jobs
+                        j
+                        for j in jobs
                         if query_lower in j.get("name", "").lower()
                         or query_lower in j.get("title", "").lower()
                         or query_lower in j.get("description", "").lower()
@@ -169,7 +170,7 @@ class GupyAPIScraper(BaseAPIScraper):
         remote_only: bool = True,
     ) -> list[dict]:
         """Busca vagas de uma empresa na Gupy.
-        
+
         Args:
             company: Empresa alvo
             query: Filtro de busca
@@ -184,7 +185,7 @@ class GupyAPIScraper(BaseAPIScraper):
             # Filtro de trabalho remoto (quando suportado)
             if remote_only:
                 params["workplaceType"] = "remote"
-            
+
             response = await self.client.get(url, params=params if params else None)
 
             if response.status_code == 200:
@@ -201,10 +202,7 @@ class GupyAPIScraper(BaseAPIScraper):
 
                 # Filtro adicional por remoto (fallback se API não filtrou)
                 if remote_only:
-                    jobs = [
-                        j for j in jobs
-                        if self._is_remote_job(j)
-                    ]
+                    jobs = [j for j in jobs if self._is_remote_job(j)]
 
                 return jobs
 
@@ -228,7 +226,8 @@ class GupyAPIScraper(BaseAPIScraper):
 
                 # Filtra apenas vagas da empresa específica
                 jobs = [
-                    j for j in jobs
+                    j
+                    for j in jobs
                     if company.identifier.lower() in j.get("careerPageName", "").lower()
                     or company.name.lower() in j.get("companyName", "").lower()
                 ]
@@ -246,20 +245,20 @@ class GupyAPIScraper(BaseAPIScraper):
             return True
         if workplace in ["on-site", "hybrid"]:
             return False
-        
+
         # Fallback: busca no título e descrição
         text = f"{job.get('name', '')} {job.get('description', '')}".lower()
         remote_keywords = ["remoto", "remote", "home office", "anywhere"]
         hybrid_keywords = ["híbrido", "hibrido", "hybrid", "presencial"]
-        
+
         # Se tem palavra de híbrido/presencial, não é remoto
         if any(kw in text for kw in hybrid_keywords):
             return False
-        
+
         # Se tem palavra de remoto, é remoto
         if any(kw in text for kw in remote_keywords):
             return True
-        
+
         return False
 
 
@@ -289,7 +288,7 @@ class GreenhouseAPIScraper(BaseAPIScraper):
         brazil_only: bool = True,
     ) -> list[dict]:
         """Busca vagas de uma empresa no Greenhouse.
-        
+
         Args:
             company: Empresa alvo
             query: Filtro de busca
@@ -319,10 +318,7 @@ class GreenhouseAPIScraper(BaseAPIScraper):
 
                 # Filtro de remoto e Brasil (Greenhouse não tem filtro nativo)
                 if remote_only or brazil_only:
-                    jobs = [
-                        j for j in jobs
-                        if self._is_valid_job(j, remote_only, brazil_only)
-                    ]
+                    jobs = [j for j in jobs if self._is_valid_job(j, remote_only, brazil_only)]
 
                 return jobs
 
@@ -340,39 +336,65 @@ class GreenhouseAPIScraper(BaseAPIScraper):
         location = job.get("location_name", "").lower()
         title = job.get("title", "").lower()
         content = job.get("html", "").lower()
-        
+
         full_text = f"{title} {location} {content}"
-        
+
         # Verifica remoto
         if remote_only:
             remote_keywords = ["remote", "remoto", "home office", "anywhere", "work from home"]
             hybrid_keywords = ["hybrid", "híbrido", "hibrido", "on-site", "presencial", "office"]
-            
+
             # Se tem híbrido/presencial explícito, descarta
             if any(kw in location for kw in hybrid_keywords):
                 return False
-            
+
             # Se não menciona remoto em lugar nenhum, descarta
             if not any(kw in full_text for kw in remote_keywords):
                 return False
-        
+
         # Verifica Brasil
         if brazil_only:
-            brazil_keywords = ["brazil", "brasil", "são paulo", "sao paulo", "rio de janeiro", 
-                              "belo horizonte", "curitiba", "porto alegre", "florianópolis",
-                              "brasília", "brasilia", "recife", "salvador", "fortaleza"]
-            invalid_countries = ["spain", "espanha", "portugal", "usa", "united states", 
-                                "uk", "germany", "france", "india", "canada", "mexico",
-                                "argentina", "chile", "colombia"]
-            
+            brazil_keywords = [
+                "brazil",
+                "brasil",
+                "são paulo",
+                "sao paulo",
+                "rio de janeiro",
+                "belo horizonte",
+                "curitiba",
+                "porto alegre",
+                "florianópolis",
+                "brasília",
+                "brasilia",
+                "recife",
+                "salvador",
+                "fortaleza",
+            ]
+            invalid_countries = [
+                "spain",
+                "espanha",
+                "portugal",
+                "usa",
+                "united states",
+                "uk",
+                "germany",
+                "france",
+                "india",
+                "canada",
+                "mexico",
+                "argentina",
+                "chile",
+                "colombia",
+            ]
+
             # Se menciona país inválido na localização, descarta
             if any(country in location for country in invalid_countries):
                 return False
-            
+
             # Se é empresa brasileira (da nossa lista), assume Brasil
             # A menos que localização indique outro país
             # Empresas da lista já são validadas, então aceita
-        
+
         return True
 
 
@@ -452,7 +474,11 @@ class SmartRecruitersAPIScraper(BaseAPIScraper):
                 jobs = data.get("content", [])
 
                 for job in jobs:
-                    job["url"] = job.get("ref", {}).get("url", "") if isinstance(job.get("ref"), dict) else ""
+                    job["url"] = (
+                        job.get("ref", {}).get("url", "")
+                        if isinstance(job.get("ref"), dict)
+                        else ""
+                    )
                     job["title"] = job.get("name", "")
                     job["company"] = company.name
 
@@ -501,7 +527,7 @@ async def run_all_api_scrapers(
         Lista de todos os arquivos salvos
     """
     all_files = []
-    
+
     # Scrapers disponíveis (exceto Workday que precisa de navegador)
     ats_types = [
         ATSType.GREENHOUSE,  # API mais confiável
@@ -534,6 +560,7 @@ async def run_all_api_scrapers(
 
 # Teste direto
 if __name__ == "__main__":
+
     async def test():
         # Testa Greenhouse (mais confiável)
         scraper = GreenhouseAPIScraper()
