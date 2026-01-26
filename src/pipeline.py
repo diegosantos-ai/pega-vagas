@@ -40,6 +40,9 @@ structlog.configure(
 logger = structlog.get_logger()
 
 
+
+from datetime import datetime, timedelta
+
 async def run_bronze(query: str, max_jobs: int, platform: str = "all") -> list[str]:
     """
     Executa camada Bronze (scraping via busca).
@@ -47,68 +50,50 @@ async def run_bronze(query: str, max_jobs: int, platform: str = "all") -> list[s
     Args:
         query: Termo de busca (ex: "Data Engineer")
         max_jobs: Limite de vagas
-        platform: 'all', 'api' (gupy), 'linkedin', 'vagas'
+        platform: IGNORADO na v3 (sempre roda 'all' scrapers configurados)
     """
-    logger.info("Iniciando camada Bronze (Search Mode)", query=query, max_jobs=max_jobs, platform=platform)
+    logger.info("Iniciando camada Bronze (Search Mode v3)", query=query, max_jobs=max_jobs)
 
     saved_files = []
-    
-    # Normaliza lista de queries se vier separada por virgula (futuro)
     queries = [q.strip() for q in query.split(",")]
-
-    # =========================================================================
-    # 1. API SCRAPERS (Gupy Portal) - Mais rápido e estável
-    # =========================================================================
-    if platform in ("all", "api", "gupy", "gupy-api"):
+    
+    # 1. Gestão de Estado (Date Logic)
+    last_run_file = Path("data/.last_run.json")
+    since_date = None
+    
+    if last_run_file.exists():
         try:
-            from src.ingestion.scrapers.api_scrapers import run_search_scrapers
-            
-            logger.info("Executando API Scrapers (Gupy)...")
-            files = await run_search_scrapers(queries=queries, max_jobs=max_jobs)
-            saved_files.extend(files)
-            logger.info(f"API Scrapers: {len(files)} arquivos salvos")
-            
+            with open(last_run_file, "r") as f:
+                data = json.load(f)
+                last_ts = data.get("last_run_at")
+                if last_ts:
+                    since_date = datetime.fromisoformat(last_ts)
+                    logger.info(f"Última execução em: {since_date}. Buscando vagas novas...")
         except Exception as e:
-            logger.error(f"Erro nos API Scrapers: {e}")
-
-    # =========================================================================
-    # 2. BROWSER SCRAPERS (LinkedIn, Vagas) - Fallback / Complementar
-    # =========================================================================
-    if platform in ("all", "linkedin", "vagas"):
-        try:
-            from src.ingestion.browser import BrowserManager
+            logger.warning(f"Erro lendo .last_run.json: {e}")
             
-            # Browser context único para economizar recursos
-            async with BrowserManager(headless=True) as browser:
-                
-                # LinkedIn Public Search
-                if platform in ("all", "linkedin"):
-                    try:
-                        from src.ingestion.scrapers.linkedin import LinkedInScraper
-                        scraper = LinkedInScraper(browser)
-                        
-                        for q in queries:
-                            files = await scraper.run(query=q, max_jobs=max_jobs)
-                            saved_files.extend(files)
-                            
-                    except Exception as e:
-                        logger.error(f"Erro no LinkedIn Scraper: {e}")
+    if not since_date:
+        # Default: 72 horas atrás
+        since_date = datetime.now() - timedelta(hours=72)
+        logger.info(f"Primeira execução (ou estado perdido). Buscando desde: {since_date} (72h)")
 
-                # Vagas.com.br
-                if platform in ("all", "vagas"):
-                    try:
-                        from src.ingestion.scrapers.vagas import VagasScraper
-                        scraper = VagasScraper(browser)
-                        
-                        for q in queries:
-                            files = await scraper.run(query=q, max_jobs=max_jobs)
-                            saved_files.extend(files)
-                            
-                    except Exception as e:
-                        logger.error(f"Erro no Vagas Scraper: {e}")
-
-        except Exception as e:
-            logger.error(f"Erro crítico no BrowserManager: {e}")
+    # 2. Executa Scrapers (One-Shot)
+    try:
+        from src.ingestion.scrapers.api_scrapers import run_search_scrapers
+        
+        logger.info("Executando Scrapers de Busca (One-Shot)...")
+        files = await run_search_scrapers(queries=queries, max_jobs=max_jobs, since_date=since_date)
+        saved_files.extend(files)
+        
+        # 3. Atualiza Estado se houve sucesso
+        with open(last_run_file, "w") as f:
+            json.dump({
+                "last_run_at": datetime.now().isoformat(),
+                "files_count": len(saved_files)
+            }, f)
+            
+    except Exception as e:
+        logger.error(f"Erro nos Scrapers: {e}")
 
     logger.info(f"Bronze finalizada: {len(saved_files)} total de arquivos salvos")
     return saved_files
