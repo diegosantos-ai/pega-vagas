@@ -1,11 +1,14 @@
 """
-CLI principal do pipeline Pega-Vagas.
+CLI principal do pipeline Pega-Vagas (Refatorado v2).
+
+Mudança principal: Foco em BUSCA por palavra-chave (Search-First),
+removendo a dependência de listas fixas de empresas.
 
 Uso:
-    python -m src.pipeline bronze --query "Data Engineer"
+    python -m src.pipeline bronze --query "Data Engineer" --max-jobs 100
     python -m src.pipeline silver
     python -m src.pipeline gold
-    python -m src.pipeline run  # Executa tudo
+    python -m src.pipeline run
 """
 
 import argparse
@@ -17,7 +20,8 @@ from pathlib import Path
 
 import structlog
 
-from src.quality_gate import QualityGate
+from src.quality_gate_v2 import QualityGateV2  # Usando V2 por padrão
+from src.config.config_loader import config
 
 # Configuração de logging estruturado
 structlog.configure(
@@ -36,115 +40,82 @@ structlog.configure(
 logger = structlog.get_logger()
 
 
-async def run_bronze(query: str, max_jobs: int, platform: str) -> list[str]:
-    """Executa camada Bronze (scraping)."""
-    logger.info("Iniciando camada Bronze", query=query, max_jobs=max_jobs, platform=platform)
+async def run_bronze(query: str, max_jobs: int, platform: str = "all") -> list[str]:
+    """
+    Executa camada Bronze (scraping via busca).
+    
+    Args:
+        query: Termo de busca (ex: "Data Engineer")
+        max_jobs: Limite de vagas
+        platform: 'all', 'api' (gupy), 'linkedin', 'vagas'
+    """
+    logger.info("Iniciando camada Bronze (Search Mode)", query=query, max_jobs=max_jobs, platform=platform)
 
     saved_files = []
+    
+    # Normaliza lista de queries se vier separada por virgula (futuro)
+    queries = [q.strip() for q in query.split(",")]
 
     # =========================================================================
-    # SCRAPERS DE API (mais rápidos e confiáveis)
+    # 1. API SCRAPERS (Gupy Portal) - Mais rápido e estável
     # =========================================================================
-    if platform in ("all", "api", "greenhouse", "lever", "smartrecruiters"):
+    if platform in ("all", "api", "gupy", "gupy-api"):
         try:
-            from src.ingestion.scrapers.api_scrapers import (
-                GreenhouseAPIScraper,
-                GupyAPIScraper,
-                LeverAPIScraper,
-                SmartRecruitersAPIScraper,
-            )
-
-            # Greenhouse (Nubank, Stone, XP, etc)
-            if platform in ("all", "api", "greenhouse"):
-                try:
-                    scraper = GreenhouseAPIScraper()
-                    files = await scraper.run(query=query, max_jobs_per_company=max_jobs)
-                    saved_files.extend(files)
-                    logger.info(f"Greenhouse: {len(files)} vagas coletadas")
-                except Exception as e:
-                    logger.error(f"Erro no Greenhouse: {e}")
-
-            # Lever (Stripe, Figma, etc)
-            if platform in ("all", "api", "lever"):
-                try:
-                    scraper = LeverAPIScraper()
-                    files = await scraper.run(query=query, max_jobs_per_company=max_jobs)
-                    saved_files.extend(files)
-                    logger.info(f"Lever: {len(files)} vagas coletadas")
-                except Exception as e:
-                    logger.error(f"Erro no Lever: {e}")
-
-            # SmartRecruiters (Serasa, Keyrus)
-            if platform in ("all", "api", "smartrecruiters"):
-                try:
-                    scraper = SmartRecruitersAPIScraper()
-                    files = await scraper.run(query=query, max_jobs_per_company=max_jobs)
-                    saved_files.extend(files)
-                    logger.info(f"SmartRecruiters: {len(files)} vagas coletadas")
-                except Exception as e:
-                    logger.error(f"Erro no SmartRecruiters: {e}")
-
-            # Gupy API (Itaú, iFood, Magalu, etc)
-            if platform in ("all", "api", "gupy-api"):
-                try:
-                    scraper = GupyAPIScraper()
-                    files = await scraper.run(query=query, max_jobs_per_company=max_jobs)
-                    saved_files.extend(files)
-                    logger.info(f"Gupy API: {len(files)} vagas coletadas")
-                except Exception as e:
-                    logger.error(f"Erro no Gupy API: {e}")
-
+            from src.ingestion.scrapers.api_scrapers import run_search_scrapers
+            
+            logger.info("Executando API Scrapers (Gupy)...")
+            files = await run_search_scrapers(queries=queries, max_jobs=max_jobs)
+            saved_files.extend(files)
+            logger.info(f"API Scrapers: {len(files)} arquivos salvos")
+            
         except Exception as e:
-            logger.error(f"Erro nos scrapers de API: {e}")
+            logger.error(f"Erro nos API Scrapers: {e}")
 
     # =========================================================================
-    # SCRAPERS DE NAVEGADOR (fallback, mais lentos)
+    # 2. BROWSER SCRAPERS (LinkedIn, Vagas) - Fallback / Complementar
     # =========================================================================
-    if platform in ("gupy", "vagas", "linkedin"):
-        from src.ingestion import BrowserManager
-        from src.ingestion.scrapers.gupy import GupyScraper
-        from src.ingestion.scrapers.vagas import VagasScraper
-
+    if platform in ("all", "linkedin", "vagas"):
         try:
+            from src.ingestion.browser import BrowserManager
+            
+            # Browser context único para economizar recursos
             async with BrowserManager(headless=True) as browser:
-                # Gupy Scraper (navegador)
-                if platform == "gupy":
-                    try:
-                        scraper = GupyScraper(browser)
-                        files = await scraper.run(query=query, max_jobs=max_jobs)
-                        saved_files.extend(files)
-                    except Exception as e:
-                        logger.error(f"Erro no scraping Gupy: {e}")
-
-                # Vagas.com.br Scraper
-                if platform == "vagas":
-                    try:
-                        scraper = VagasScraper(browser)
-                        files = await scraper.run(query=query, max_jobs=max_jobs)
-                        saved_files.extend(files)
-                    except Exception as e:
-                        logger.error(f"Erro no scraping Vagas: {e}")
-
-                # LinkedIn Scraper
-                if platform == "linkedin":
+                
+                # LinkedIn Public Search
+                if platform in ("all", "linkedin"):
                     try:
                         from src.ingestion.scrapers.linkedin import LinkedInScraper
-
                         scraper = LinkedInScraper(browser)
-                        files = await scraper.run(query=query, max_jobs=max_jobs)
-                        saved_files.extend(files)
+                        
+                        for q in queries:
+                            files = await scraper.run(query=q, max_jobs=max_jobs)
+                            saved_files.extend(files)
+                            
                     except Exception as e:
-                        logger.error(f"Erro no scraping LinkedIn: {e}")
+                        logger.error(f"Erro no LinkedIn Scraper: {e}")
+
+                # Vagas.com.br
+                if platform in ("all", "vagas"):
+                    try:
+                        from src.ingestion.scrapers.vagas import VagasScraper
+                        scraper = VagasScraper(browser)
+                        
+                        for q in queries:
+                            files = await scraper.run(query=q, max_jobs=max_jobs)
+                            saved_files.extend(files)
+                            
+                    except Exception as e:
+                        logger.error(f"Erro no Vagas Scraper: {e}")
 
         except Exception as e:
-            logger.error(f"Erro ao iniciar navegador: {e}")
+            logger.error(f"Erro crítico no BrowserManager: {e}")
 
-    logger.info(f"Bronze finalizada: {len(saved_files)} arquivos salvos")
+    logger.info(f"Bronze finalizada: {len(saved_files)} total de arquivos salvos")
     return saved_files
 
 
 async def run_silver() -> int:
-    """Executa camada Silver (processamento LLM)."""
+    """Executa camada Silver (processamento LLM). Mantido compatível."""
     logger.info("Iniciando camada Silver")
 
     from src.processing import LLMExtractor
@@ -160,44 +131,44 @@ async def run_silver() -> int:
     extractor = LLMExtractor()
     processed = 0
 
-    # Processa cada arquivo JSON da Bronze
+    # Processa recursivamente (suporta subpastas gupy, linkedin, etc)
     for json_file in bronze_dir.rglob("*.json"):
+        # Pula arquivos de controle/logs se houver
+        if json_file.name.startswith("."): 
+            continue
+
         try:
+            # Verifica se já foi processado recentemente (otimização simples)
+            out_file = silver_dir / f"{json_file.stem}_processed.json"
+            if out_file.exists():
+                # Poderíamos checar timestamp, mas por enquanto assume processado
+                continue
+
             with open(json_file, encoding="utf-8") as f:
                 data = json.load(f)
 
-            # Normaliza diferentes formatos de dados bronze:
-            # 1. Browser scraper: {html, url, title, company, _metadata}
-            # 2. API scraper: {content/description, absolute_url/url, title/name, _metadata}
-
+            # --- Logica de Normalização de Entrada ---
+            
             metadata = data.get("_metadata", {})
-
-            # Obtém HTML/conteúdo
             html = data.get("html", "")
+            
+            # Se não tem HTML, tenta montar um (caso de APIs que retornam texto puro)
             if not html:
-                # Formato API - monta HTML a partir dos campos
-                content = data.get("content", data.get("description", ""))
-                name = data.get("name", data.get("title", ""))
-                location = data.get("location", {})
-                loc_name = location.get("name", "") if isinstance(location, dict) else str(location)
-
-                if content or name:
-                    # Cria um HTML mínimo para o LLM processar
-                    html = f"""
-                    <h1>{name}</h1>
-                    <p><strong>Localização:</strong> {loc_name}</p>
-                    <div>{content}</div>
-                    """
+                description = data.get("description", data.get("content", ""))
+                title_api = data.get("title", data.get("name", ""))
+                
+                if description:
+                    html = f"<h1>{title_api}</h1><div>{description}</div>"
 
             if not html:
-                logger.debug(f"Sem conteúdo para processar: {json_file.name}")
+                logger.debug(f"Ignorando arquivo sem conteúdo: {json_file.name}")
                 continue
 
-            # Obtém hints
+            # Hints para o LLM
             title_hint = data.get("title", data.get("name", ""))
-            company_hint = data.get("company", metadata.get("company", ""))
-            url = data.get("url", data.get("absolute_url", data.get("hostedUrl", "")))
-            platform = metadata.get("platform", data.get("platform", ""))
+            company_hint = data.get("company", data.get("companyName", metadata.get("company", "")))
+            url = data.get("url", data.get("jobUrl", ""))
+            platform = metadata.get("platform", "unknown")
 
             result = await extractor.extract_from_html(
                 html,
@@ -207,31 +178,27 @@ async def run_silver() -> int:
                 company_hint=company_hint,
             )
 
-            # Salva na Silver
-            out_file = silver_dir / f"{json_file.stem}_processed.json"
+            # Salva Silver
             with open(out_file, "w", encoding="utf-8") as f:
                 json.dump(result.model_dump(), f, ensure_ascii=False, indent=2, default=str)
 
             processed += 1
-            logger.debug(f"Processado: {json_file.name}")
+            if processed % 10 == 0:
+                logger.info(f"Processados {processed} arquivos...")
 
         except Exception as e:
-            logger.warning(f"Erro ao processar {json_file}: {e}")
+            logger.warning(f"Erro ao processar {json_file.name}: {e}")
 
-    logger.info(f"Silver finalizada: {processed} arquivos processados")
+    logger.info(f"Silver finalizada: {processed} novos arquivos processados")
     return processed
 
 
 def run_gold() -> int:
-    """Executa camada Gold (DuckDB transforms)."""
+    """Executa camada Gold (DuckDB)."""
     logger.info("Iniciando camada Gold")
-
     from src.analytics import create_star_schema, load_to_gold, run_transforms
 
-    # Cria/conecta ao banco
     conn = create_star_schema()
-
-    # Carrega dados da Silver
     silver_dir = Path("data/silver")
     vagas = []
 
@@ -241,177 +208,144 @@ def run_gold() -> int:
                 data = json.load(f)
                 vagas.append(data)
         except Exception as e:
-            logger.warning(f"Erro ao ler {json_file}: {e}")
+            logger.warning(f"Erro leitura gold {json_file.name}: {e}")
 
-    # Carrega no Star Schema
     loaded = load_to_gold(conn, vagas)
-
-    # Cria views analíticas
-    run_transforms()
-
+    run_transforms() # Gera views agregadas
     conn.close()
+    
     logger.info(f"Gold finalizada: {loaded} vagas carregadas")
     return loaded
 
 
 def run_export() -> list[str]:
-    """Exporta dados para Parquet."""
-    logger.info("Exportando para Parquet")
-
+    """Exporta para Parquet/CSV."""
     from src.analytics.transforms import export_to_parquet
-
     files = export_to_parquet()
     logger.info(f"Exportados {len(files)} arquivos")
     return files
 
 
 async def run_notify(platform: str = "all") -> int:
-    """Envia notificações de vagas novas via Telegram."""
-    logger.info("Enviando notificações", platform=platform)
+    """Envia notificações Telegram (usa QualityGateV2)."""
+    logger.info("Enviando notificações...")
+    
+    from src.notifications.telegram_v2 import TelegramNotifierV2
+    from src.notifications.telegram import JobNotification # Compatibilidade de modelo
 
-    from src.notifications.telegram import JobNotification, TelegramNotifier
-
-    try:
-        notifier = TelegramNotifier()
-    except ValueError as e:
-        logger.error(f"Telegram não configurado: {e}")
+    notifier = TelegramNotifierV2()
+    
+    # Se não configurado, aborta
+    if not config.get_telegram_config():
+        logger.warning("Telegram não configurado")
         return 0
 
-    # Carrega vagas da Silver para notificar
     silver_dir = Path("data/silver")
-    jobs = []
+    jobs_to_notify = []
+    
+    # Quality Gate V2
+    gate = QualityGateV2()
 
     for json_file in silver_dir.glob("*_processed.json"):
         try:
             with open(json_file, encoding="utf-8") as f:
                 data = json.load(f)
 
-            vaga = data.get("vaga", data)
+            vaga = data.get("vaga", data) # Suporta aninhamento antigo e novo
+            
+            # Adapta para o formato do GateV2
+            job_data_for_gate = {
+                "title": vaga.get("titulo_normalizado") or vaga.get("titulo_original"),
+                "description": vaga.get("descricao", ""),
+                "company": vaga.get("empresa", ""),
+                "url": vaga.get("url_origem", ""),
+            }
+            
+            # Avaliação
+            evaluation = gate.evaluate(job_data_for_gate)
+            
+            if evaluation.is_valid:
+                # Prepara objeto de notificação
+                # Extração simples de skills para display
+                skills_list = []
+                if "skills" in vaga and isinstance(vaga["skills"], list):
+                     skills_list = [s.get("nome", s) for s in vaga["skills"] if isinstance(s, dict)]
+                
+                # Formata salário
+                sal_dict = vaga.get("salario", {})
+                s_min = sal_dict.get("valor_minimo") if isinstance(sal_dict, dict) else None
+                s_max = sal_dict.get("valor_maximo") if isinstance(sal_dict, dict) else None
 
-            # QualityGate: valida vaga antes de notificar
-            # self.check_links=False por padrão para não bloquear vagas com 403 (comum em api cleaners)
-            gate = QualityGate(check_links=False)
-
-            avaliacao = gate.evaluate(
-                {
-                    "url": vaga.get("url_origem", ""),
-                    "title": vaga.get("titulo_normalizado", vaga.get("titulo_original", "")),
-                    "description": vaga.get("descricao", ""),
-                    "company": vaga.get("empresa", ""),
-                    "original_location": vaga.get("localidade", ""),
-                    "work_model": vaga.get("modelo_trabalho", ""),
-                }
-            )
-            if not avaliacao.is_valid:
-                logger.debug(
-                    f"QualityGate rejeitou: {vaga.get('titulo_original')} ({avaliacao.rejection_reason})"
+                job_obj = JobNotification(
+                    title=job_data_for_gate["title"],
+                    company=job_data_for_gate["company"],
+                    location=str(vaga.get("localidade", "")),
+                    work_model=vaga.get("modelo_trabalho", "N/A"),
+                    url=job_data_for_gate["url"],
+                    platform=vaga.get("plataforma", platform),
+                    salary_min=s_min,
+                    salary_max=s_max,
+                    skills=skills_list
                 )
-                continue
-
-            if avaliacao.score < 40:
-                logger.debug(f"Score baixo ({avaliacao.score}): {vaga.get('titulo_original')}")
-                continue
-
-            # Extração segura de campos complexos
-            loc = vaga.get("localidade")
-            city = loc.get("cidade", "") if isinstance(loc, dict) else str(loc) if loc else ""
-
-            sal = vaga.get("salario")
-            s_min = sal.get("valor_minimo") if isinstance(sal, dict) else None
-            s_max = sal.get("valor_maximo") if isinstance(sal, dict) else None
-
-            # Normalização de skills
-            skills = []
-            if vaga.get("skills"):
-                raw_skills = vaga["skills"][:5]
-                skills = [s.get("nome", s) if isinstance(s, dict) else str(s) for s in raw_skills]
-
-            job = JobNotification(
-                title=vaga.get("titulo_normalizado", vaga.get("titulo_original", "N/A")),
-                company=vaga.get("empresa", "N/A"),
-                location=city,
-                work_model=vaga.get("modelo_trabalho", ""),
-                url=vaga.get("url_origem", ""),
-                platform=vaga.get("plataforma", platform),
-                salary_min=s_min,
-                salary_max=s_max,
-                skills=skills,
-            )
-            jobs.append(job)
+                
+                # Anexa o score para o notificador usar (se suportado) ou apenas logar
+                job_obj.score = evaluation.score 
+                
+                jobs_to_notify.append(job_obj)
+            else:
+                logger.debug(f"Rejeitado ({evaluation.score}): {job_data_for_gate['title']}")
 
         except Exception as e:
-            logger.warning(f"Erro ao preparar notificação {json_file}: {e}")
+            logger.warning(f"Erro preparando notificação de {json_file.name}: {e}")
 
-    if not jobs:
-        logger.info("Nenhuma vaga para notificar")
+    if jobs_to_notify:
+        logger.info(f"Notificando {len(jobs_to_notify)} vagas aprovadas pelo GateV2")
+        sent_count = await notifier.send_batch_summary(jobs_to_notify, only_new=True)
+        return sent_count
+    else:
+        logger.info("Nenhuma vaga qualificada para notificar.")
         return 0
-
-    # Envia notificações
-    sent = await notifier.send_batch_summary(jobs, only_new=True)
-    logger.info(f"Notificações enviadas: {sent}")
-    return sent
 
 
 async def run_full_pipeline(query: str, max_jobs: int, platform: str, notify: bool = True) -> None:
-    """Executa pipeline completo."""
-    logger.info("=== INICIANDO PIPELINE COMPLETO ===")
+    logger.info("=== PIPELINE V2 START ===")
     start = datetime.now()
 
-    # Bronze
     await run_bronze(query, max_jobs, platform)
-
-    # Silver
     await run_silver()
-
-    # Gold
     run_gold()
-
-    # Export
     run_export()
 
-    # Notificar (se configurado)
     if notify:
-        try:
-            await run_notify(platform)
-        except Exception as e:
-            logger.warning(f"Erro nas notificações: {e}")
+        await run_notify(platform)
 
-    duration = datetime.now() - start
-    logger.info(f"=== PIPELINE FINALIZADO em {duration} ===")
+    logger.info(f"=== PIPELINE END (Duration: {datetime.now() - start}) ===")
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Pipeline Pega-Vagas - Coleta e análise de vagas de tecnologia"
-    )
+    parser = argparse.ArgumentParser(description="Pega-Vagas Pipeline V2 (Search-Based)")
+    subparsers = parser.add_subparsers(dest="command", help="Comandos")
 
-    subparsers = parser.add_subparsers(dest="command", help="Comandos disponíveis")
+    # Bronze
+    bronze = subparsers.add_parser("bronze")
+    bronze.add_argument("--query", default="Data Engineer", help="Lista de termos (csv)")
+    bronze.add_argument("--max-jobs", type=int, default=50)
+    bronze.add_argument("--platform", default="api")
 
-    # Comando: bronze
-    bronze_parser = subparsers.add_parser("bronze", help="Executa scraping")
-    bronze_parser.add_argument("--query", default="Data Engineer", help="Termo de busca")
-    bronze_parser.add_argument("--max-jobs", type=int, default=50, help="Máximo de vagas")
-    bronze_parser.add_argument("--platform", default="all", help="Plataforma alvo")
+    # Silver/Gold/Export
+    subparsers.add_parser("silver")
+    subparsers.add_parser("gold")
+    subparsers.add_parser("export")
+    
+    # Notify
+    subparsers.add_parser("notify")
 
-    # Comando: silver
-    subparsers.add_parser("silver", help="Executa processamento LLM")
-
-    # Comando: gold
-    subparsers.add_parser("gold", help="Executa transformações DuckDB")
-
-    # Comando: export
-    subparsers.add_parser("export", help="Exporta para Parquet")
-
-    # Comando: notify
-    notify_parser = subparsers.add_parser("notify", help="Envia notificações Telegram")
-    notify_parser.add_argument("--platform", default="all", help="Filtrar por plataforma")
-
-    # Comando: run
-    run_parser = subparsers.add_parser("run", help="Executa pipeline completo")
-    run_parser.add_argument("--query", default="Data Engineer", help="Termo de busca")
-    run_parser.add_argument("--max-jobs", type=int, default=50, help="Máximo de vagas")
-    run_parser.add_argument("--platform", default="all", help="Plataforma alvo")
-    run_parser.add_argument("--no-notify", action="store_true", help="Não enviar notificações")
+    # Run All
+    run = subparsers.add_parser("run")
+    run.add_argument("--query", default="Data Engineer")
+    run.add_argument("--max-jobs", type=int, default=50)
+    run.add_argument("--platform", default="api")
+    run.add_argument("--no-notify", action="store_true")
 
     args = parser.parse_args()
 
@@ -424,13 +358,11 @@ def main():
     elif args.command == "export":
         run_export()
     elif args.command == "notify":
-        asyncio.run(run_notify(args.platform))
+        asyncio.run(run_notify())
     elif args.command == "run":
         asyncio.run(run_full_pipeline(args.query, args.max_jobs, args.platform, not args.no_notify))
     else:
         parser.print_help()
-        sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

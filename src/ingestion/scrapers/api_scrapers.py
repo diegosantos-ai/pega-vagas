@@ -1,32 +1,27 @@
 """
-Scraper para APIs públicas/semi-públicas de ATS.
+Scraper para APIs públicas de Agregadores de Vagas via Busca.
 
-Implementa scrapers leves (sem navegador) para:
-- Gupy API (portal.api.gupy.io)
-- Greenhouse API (boards-api.greenhouse.io)
-- Lever API (api.lever.co)
-- SmartRecruiters API (api.smartrecruiters.com)
-
-Estes scrapers são mais rápidos e confiáveis que navegador.
+Foco principal: Gupy Portal (portal.api.gupy.io)
+Esta versão remove a dependência de uma lista fixa de empresas.
 """
 
 import asyncio
 import json
+import urllib.parse
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
+from typing import List, Dict, Any
 
 import httpx
 import structlog
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from src.config.companies import ATSType, Company, get_companies_by_ats
-
 logger = structlog.get_logger()
 
 
-class BaseAPIScraper(ABC):
-    """Classe base para scrapers de API."""
+class BaseSearchScraper(ABC):
+    """Classe base para scrapers de busca (keyword-based)."""
 
     def __init__(
         self,
@@ -47,92 +42,30 @@ class BaseAPIScraper(ABC):
     @property
     @abstractmethod
     def platform_name(self) -> str:
-        """Nome da plataforma (gupy, greenhouse, etc)."""
+        """Nome da plataforma (ex: gupy)."""
         pass
 
     @abstractmethod
-    async def fetch_jobs(self, company: Company, query: str | None = None) -> list[dict]:
-        """Busca vagas de uma empresa específica."""
+    async def search_jobs(self, query: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Busca vagas por palavra-chave."""
         pass
 
-    async def run(
-        self,
-        companies: list[Company] | None = None,
-        query: str | None = None,
-        max_jobs_per_company: int = 100,
-    ) -> list[str]:
-        """
-        Executa o scraping para todas as empresas configuradas.
-
-        Args:
-            companies: Lista de empresas (usa config se None)
-            query: Filtro opcional por termo
-            max_jobs_per_company: Limite de vagas por empresa
-
-        Returns:
-            Lista de arquivos salvos
-        """
-        if companies is None:
-            companies = get_companies_by_ats(self.ats_type)
-
-        saved_files = []
-        total_jobs = 0
-
-        for company in companies:
-            try:
-                logger.info("Buscando vagas", company=company.name, platform=self.platform_name)
-                jobs = await self.fetch_jobs(company, query)
-
-                if not jobs:
-                    logger.debug("Nenhuma vaga encontrada", company=company.name)
-                    continue
-
-                # Limita quantidade
-                jobs = jobs[:max_jobs_per_company]
-
-                # Filtra por query se especificado
-                if query:
-                    query_lower = query.lower()
-                    jobs = [
-                        j
-                        for j in jobs
-                        if query_lower in j.get("name", "").lower()
-                        or query_lower in j.get("title", "").lower()
-                        or query_lower in j.get("description", "").lower()
-                    ]
-
-                # Salva cada vaga
-                for job in jobs:
-                    file_path = await self._save_job(company, job)
-                    saved_files.append(str(file_path))
-                    total_jobs += 1
-
-                logger.info("Vagas coletadas", company=company.name, count=len(jobs))
-
-                # Rate limiting
-                await asyncio.sleep(1)
-
-            except Exception as e:
-                logger.error("Erro ao buscar vagas", company=company.name, error=str(e))
-
-        await self.client.aclose()
-        logger.info("Scraping finalizado", platform=self.platform_name, total_jobs=total_jobs)
-        return saved_files
-
-    async def _save_job(self, company: Company, job: dict) -> Path:
+    async def _save_job(self, job: Dict[str, Any], query: str) -> Path:
         """Salva uma vaga no formato Bronze."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        job_id = job.get("id", job.get("job_id", timestamp))
-        filename = f"{company.identifier}_{job_id}_{timestamp}.json"
+        job_id = str(job.get("id", job.get("jobId", timestamp)))
+        
+        # Sanitiza nome do arquivo
+        safe_company = "".join(x for x in job.get("companyName", "unknown") if x.isalnum())
+        filename = f"{safe_company}_{job_id}_{timestamp}.json"
         filepath = self.output_dir / filename
 
         # Adiciona metadados
         job["_metadata"] = {
             "platform": self.platform_name,
-            "company": company.name,
-            "company_id": company.identifier,
+            "query": query,
             "scraped_at": datetime.now().isoformat(),
-            "category": company.category,
+            "scraper_version": "2.0.0",  # Search-based
         }
 
         with open(filepath, "w", encoding="utf-8") as f:
@@ -141,422 +74,128 @@ class BaseAPIScraper(ABC):
         return filepath
 
 
-# =============================================================================
-# GUPY API SCRAPER
-# =============================================================================
-class GupyAPIScraper(BaseAPIScraper):
+class GupySearchScraper(BaseSearchScraper):
     """
-    Scraper para Gupy usando a API oculta.
-
-    API Base: https://portal.api.gupy.io/api/v1/jobs
-    Parâmetros:
-        - jobName: Nome/slug da empresa (ex: "nubank", "itau")
-        - limit: Quantidade de vagas (max 200)
-        - offset: Paginação
+    Scraper para o Portal de Vagas da Gupy.
+    API: https://portal.api.gupy.io/api/v1/jobs
     """
 
     platform_name = "gupy"
-    ats_type = ATSType.GUPY
-
-    # API v1 funciona para busca geral
     API_URL = "https://portal.api.gupy.io/api/v1/jobs"
-    COMPANY_API_URL = "https://{company}.gupy.io/api/jobs"
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
-    async def fetch_jobs(
-        self,
-        company: Company,
-        query: str | None = None,
-        remote_only: bool = True,
-    ) -> list[dict]:
-        """Busca vagas de uma empresa na Gupy.
-
-        Args:
-            company: Empresa alvo
-            query: Filtro de busca
-            remote_only: Se True, filtra apenas vagas remotas
+    async def search_jobs(self, query: str, limit: int = 50) -> List[Dict[str, Any]]:
         """
-        jobs = []
-
-        # Tenta API do portal de carreira da empresa
-        try:
-            url = f"https://{company.identifier}.gupy.io/api/jobs"
-            params = {}
-            # Filtro de trabalho remoto (quando suportado)
-            if remote_only:
-                params["workplaceType"] = "remote"
-
-            response = await self.client.get(url, params=params if params else None)
-
-            if response.status_code == 200:
-                data = response.json()
-                # A resposta pode ter diferentes estruturas
-                if isinstance(data, list):
-                    jobs = data
-                elif isinstance(data, dict):
-                    jobs = data.get("data", data.get("jobs", []))
-
-                # Adiciona URL de origem
-                for job in jobs:
-                    job["url"] = f"https://{company.identifier}.gupy.io/job/{job.get('id', '')}"
-
-                # Filtro adicional por remoto (fallback se API não filtrou)
-                if remote_only:
-                    jobs = [j for j in jobs if self._is_remote_job(j)]
-
-                return jobs
-
-        except Exception as e:
-            logger.debug("API da empresa falhou, tentando portal", error=str(e))
-
-        # Fallback: API do portal de busca
-        try:
+        Busca vagas no portal da Gupy usando termo de busca.
+        """
+        logger.info(f"Buscando vagas na Gupy: '{query}'")
+        
+        all_jobs = []
+        offset = 0
+        page_size = 100 # Máximo permitido pela API costuma ser 100
+        
+        # Busca até atingir o limite ou acabar os resultados
+        while len(all_jobs) < limit:
+            remaining = limit - len(all_jobs)
+            current_limit = min(page_size, remaining)
+            
+        while len(all_jobs) < limit:
+            remaining = limit - len(all_jobs)
+            current_limit = min(page_size, remaining)
+            
+            # Tentativa 1: jobName (algumas versoes da API usam isso para busca textual)
             params = {
-                "name": company.name,
-                "limit": 100,
+                "jobName": query, 
+                "limit": current_limit,
+                "offset": offset,
             }
-            if query:
-                params["searchTerm"] = query
 
-            response = await self.client.get(self.API_URL, params=params)
+            try:
+                response = await self.client.get(self.API_URL, params=params)
+                
+                # Se der erro 400, tenta com searchTerm (pode ser alternativo)
+                if response.status_code == 400:
+                    logger.warning("Gupy API 400 com 'jobName', tentando 'searchTerm'...")
+                    params["searchTerm"] = query
+                    del params["jobName"]
+                    response = await self.client.get(self.API_URL, params=params)
 
-            if response.status_code == 200:
+                if response.status_code != 200:
+                    logger.error(f"Erro Gupy API: {response.status_code} - {response.text[:100]}")
+                    break
+                    
                 data = response.json()
                 jobs = data.get("data", [])
-
-                # Filtra apenas vagas da empresa específica
-                jobs = [
-                    j
-                    for j in jobs
-                    if company.identifier.lower() in j.get("careerPageName", "").lower()
-                    or company.name.lower() in j.get("companyName", "").lower()
-                ]
-
-        except Exception as e:
-            logger.error("Erro na API Gupy", error=str(e))
-
-        return jobs
-
-    def _is_remote_job(self, job: dict) -> bool:
-        """Verifica se vaga é remota baseado nos campos da Gupy."""
-        # Campo workplaceType da Gupy
-        workplace = job.get("workplaceType", "").lower()
-        if workplace == "remote":
-            return True
-        if workplace in ["on-site", "hybrid"]:
-            return False
-
-        # Fallback: busca no título e descrição
-        text = f"{job.get('name', '')} {job.get('description', '')}".lower()
-        remote_keywords = ["remoto", "remote", "home office", "anywhere"]
-        hybrid_keywords = ["híbrido", "hibrido", "hybrid", "presencial"]
-
-        # Se tem palavra de híbrido/presencial, não é remoto
-        if any(kw in text for kw in hybrid_keywords):
-            return False
-
-        # Se tem palavra de remoto, é remoto
-        if any(kw in text for kw in remote_keywords):
-            return True
-
-        return False
-
-
-# =============================================================================
-# GREENHOUSE API SCRAPER
-# =============================================================================
-class GreenhouseAPIScraper(BaseAPIScraper):
-    """
-    Scraper para Greenhouse usando a API pública.
-
-    API: https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs?content=true
-
-    Esta é a "mina de ouro" mencionada no documento - API totalmente pública
-    e bem documentada.
-    """
-
-    platform_name = "greenhouse"
-    ats_type = ATSType.GREENHOUSE
-    API_URL = "https://boards-api.greenhouse.io/v1/boards/{token}/jobs"
-
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
-    async def fetch_jobs(
-        self,
-        company: Company,
-        query: str | None = None,
-        remote_only: bool = True,
-        brazil_only: bool = True,
-    ) -> list[dict]:
-        """Busca vagas de uma empresa no Greenhouse.
-
-        Args:
-            company: Empresa alvo
-            query: Filtro de busca
-            remote_only: Se True, filtra apenas vagas remotas
-            brazil_only: Se True, filtra apenas vagas para Brasil
-        """
-        url = self.API_URL.format(token=company.identifier)
-        params = {"content": "true"}  # Retorna HTML completo da descrição
-
-        try:
-            response = await self.client.get(url, params=params)
-
-            if response.status_code == 200:
-                data = response.json()
-                jobs = data.get("jobs", [])
-
-                # Adiciona URL e metadados
+                
+                if not jobs:
+                    break
+                    
                 for job in jobs:
-                    job["url"] = job.get("absolute_url", "")
-                    job["html"] = job.get("content", "")  # Descrição em HTML
-                    job["title"] = job.get("title", "")
-                    job["company"] = company.name
+                    # Normaliza URL
+                    career_page = job.get("careerPageUrl", "")
+                    job_id = job.get("id")
+                    if career_page and job_id:
+                        # careerPageUrl geralmente vem como "https://nome.gupy.io/"
+                        job["url"] = f"{career_page.rstrip('/')}/job/{job_id}"
+                    else:
+                        job["url"] = f"https://portal.gupy.io/job/{job_id}" # Fallback
+                        
+                    # Adiciona metadados úteis para o pipeline
+                    job["title"] = job.get("name")
+                    job["company"] = job.get("companyName")
+                    job["description"] = job.get("description", "") # Gupy Portal as vezes não traz full description na lista
+                    
+                all_jobs.extend(jobs)
+                offset += len(jobs)
+                
+                logger.info(f"Gupy: Coletadas {len(jobs)} vagas (Total: {len(all_jobs)})")
+                
+                await asyncio.sleep(0.5) # Rate limit suave
+                
+            except Exception as e:
+                logger.error(f"Erro na busca Gupy: {e}")
+                break
 
-                    # Extrai localização
-                    if job.get("location"):
-                        job["location_name"] = job["location"].get("name", "")
-
-                # Filtro de remoto e Brasil (Greenhouse não tem filtro nativo)
-                if remote_only or brazil_only:
-                    jobs = [j for j in jobs if self._is_valid_job(j, remote_only, brazil_only)]
-
-                return jobs
-
-            elif response.status_code == 404:
-                logger.warning("Board não encontrado", company=company.name)
-                return []
-
-        except Exception as e:
-            logger.error("Erro na API Greenhouse", company=company.name, error=str(e))
-
-        return []
-
-    def _is_valid_job(self, job: dict, remote_only: bool, brazil_only: bool) -> bool:
-        """Verifica se vaga atende critérios de remoto e Brasil."""
-        location = job.get("location_name", "").lower()
-        title = job.get("title", "").lower()
-        content = job.get("html", "").lower()
-
-        full_text = f"{title} {location} {content}"
-
-        # Verifica remoto
-        if remote_only:
-            remote_keywords = ["remote", "remoto", "home office", "anywhere", "work from home"]
-            hybrid_keywords = ["hybrid", "híbrido", "hibrido", "on-site", "presencial", "office"]
-
-            # Se tem híbrido/presencial explícito, descarta
-            if any(kw in location for kw in hybrid_keywords):
-                return False
-
-            # Se não menciona remoto em lugar nenhum, descarta
-            if not any(kw in full_text for kw in remote_keywords):
-                return False
-
-        # Verifica Brasil
-        if brazil_only:
-            # brazil_keywords unused in logic below
-            # brazil_keywords = [...]
-            invalid_countries = [
-                "spain",
-                "espanha",
-                "portugal",
-                "usa",
-                "united states",
-                "uk",
-                "germany",
-                "france",
-                "india",
-                "canada",
-                "mexico",
-                "argentina",
-                "chile",
-                "colombia",
-            ]
-
-            # Se menciona país inválido na localização, descarta
-            if any(country in location for country in invalid_countries):
-                return False
-
-            # Se é empresa brasileira (da nossa lista), assume Brasil
-            # A menos que localização indique outro país
-            # Empresas da lista já são validadas, então aceita
-
-        return True
+        return all_jobs[:limit]
 
 
 # =============================================================================
-# LEVER API SCRAPER
+# FACTORY E EXECUTOR
 # =============================================================================
-class LeverAPIScraper(BaseAPIScraper):
+
+async def run_search_scrapers(
+    queries: List[str],
+    max_jobs: int = 50,
+) -> List[str]:
     """
-    Scraper para Lever usando a API pública.
-
-    API: https://api.lever.co/v0/postings/{company}?mode=json
-    """
-
-    platform_name = "lever"
-    ats_type = ATSType.LEVER
-    API_URL = "https://api.lever.co/v0/postings/{company}"
-
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
-    async def fetch_jobs(self, company: Company, query: str | None = None) -> list[dict]:
-        """Busca vagas de uma empresa no Lever."""
-        url = self.API_URL.format(company=company.identifier)
-        params = {"mode": "json"}
-
-        try:
-            response = await self.client.get(url, params=params)
-
-            if response.status_code == 200:
-                jobs = response.json()
-
-                # Lever retorna lista diretamente
-                if isinstance(jobs, list):
-                    for job in jobs:
-                        job["url"] = job.get("hostedUrl", "")
-                        job["title"] = job.get("text", "")
-                        job["company"] = company.name
-                        job["html"] = job.get("descriptionPlain", "")
-
-                        # Localização
-                        if job.get("categories"):
-                            job["location_name"] = job["categories"].get("location", "")
-                            job["team"] = job["categories"].get("team", "")
-
-                    return jobs
-
-        except Exception as e:
-            logger.error("Erro na API Lever", company=company.name, error=str(e))
-
-        return []
-
-
-# =============================================================================
-# SMARTRECRUITERS API SCRAPER
-# =============================================================================
-class SmartRecruitersAPIScraper(BaseAPIScraper):
-    """
-    Scraper para SmartRecruiters usando a API pública.
-
-    API: https://api.smartrecruiters.com/v1/companies/{id}/postings
-    Permite filtrar por país: ?country=br
-    """
-
-    platform_name = "smartrecruiters"
-    ats_type = ATSType.SMARTRECRUITERS
-    API_URL = "https://api.smartrecruiters.com/v1/companies/{company}/postings"
-
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
-    async def fetch_jobs(self, company: Company, query: str | None = None) -> list[dict]:
-        """Busca vagas de uma empresa no SmartRecruiters."""
-        url = self.API_URL.format(company=company.identifier)
-        params = {"country": "br"}  # Filtra apenas Brasil
-
-        try:
-            response = await self.client.get(url, params=params)
-
-            if response.status_code == 200:
-                data = response.json()
-                jobs = data.get("content", [])
-
-                for job in jobs:
-                    job["url"] = (
-                        job.get("ref", {}).get("url", "")
-                        if isinstance(job.get("ref"), dict)
-                        else ""
-                    )
-                    job["title"] = job.get("name", "")
-                    job["company"] = company.name
-
-                    # Localização
-                    if job.get("location"):
-                        loc = job["location"]
-                        job["location_name"] = f"{loc.get('city', '')}, {loc.get('region', '')}"
-
-                return jobs
-
-        except Exception as e:
-            logger.error("Erro na API SmartRecruiters", company=company.name, error=str(e))
-
-        return []
-
-
-# =============================================================================
-# FACTORY E AGREGADOR
-# =============================================================================
-def get_scraper(ats_type: ATSType) -> BaseAPIScraper | None:
-    """Retorna o scraper apropriado para o tipo de ATS."""
-    scrapers = {
-        ATSType.GUPY: GupyAPIScraper,
-        ATSType.GREENHOUSE: GreenhouseAPIScraper,
-        ATSType.LEVER: LeverAPIScraper,
-        ATSType.SMARTRECRUITERS: SmartRecruitersAPIScraper,
-    }
-    scraper_class = scrapers.get(ats_type)
-    return scraper_class() if scraper_class else None
-
-
-async def run_all_api_scrapers(
-    query: str | None = None,
-    max_jobs_per_company: int = 50,
-    priority_only: bool = True,
-) -> list[str]:
-    """
-    Executa todos os scrapers de API em paralelo.
-
+    Executa scrapers de busca para uma lista de termos.
+    
     Args:
-        query: Filtro opcional por termo
-        max_jobs_per_company: Limite de vagas por empresa
-        priority_only: Se True, busca apenas empresas prioridade 1
-
+        queries: Lista de termos de busca (ex: ["Data Engineer", "Python"])
+        max_jobs: Máximo de vagas por termo
+        
     Returns:
-        Lista de todos os arquivos salvos
+        Lista de arquivos salvos
     """
-    all_files = []
-
-    # Scrapers disponíveis (exceto Workday que precisa de navegador)
-    ats_types = [
-        ATSType.GREENHOUSE,  # API mais confiável
-        ATSType.LEVER,
-        ATSType.SMARTRECRUITERS,
-        ATSType.GUPY,  # Por último pois pode ter rate limiting
-    ]
-
-    for ats_type in ats_types:
-        scraper = get_scraper(ats_type)
-        if scraper:
-            companies = get_companies_by_ats(ats_type)
-
-            if priority_only:
-                companies = [c for c in companies if c.priority == 1]
-
-            if companies:
+    saved_files = []
+    
+    # Por enquanto, apenas Gupy suporta busca global confiável via API
+    scraper = GupySearchScraper()
+    
+    for query in queries:
+        try:
+            logger.info(f"Iniciando busca para: {query}")
+            jobs = await scraper.search_jobs(query, limit=max_jobs)
+            
+            for job in jobs:
                 try:
-                    files = await scraper.run(
-                        companies=companies,
-                        query=query,
-                        max_jobs_per_company=max_jobs_per_company,
-                    )
-                    all_files.extend(files)
+                    filepath = await scraper._save_job(job, query)
+                    saved_files.append(str(filepath))
                 except Exception as e:
-                    logger.error(f"Erro no scraper {ats_type.value}", error=str(e))
-
-    return all_files
-
-
-# Teste direto
-if __name__ == "__main__":
-
-    async def test():
-        # Testa Greenhouse (mais confiável)
-        scraper = GreenhouseAPIScraper()
-        from src.config.companies import ATSType, Company
-
-        nubank = Company("Nubank", ATSType.GREENHOUSE, "nubank", "fintech", 1, True)
-        jobs = await scraper.fetch_jobs(nubank)
-        print(f"Nubank: {len(jobs)} vagas encontradas")
-
-        if jobs:
-            print(f"Exemplo: {jobs[0].get('title')}")
-
-    asyncio.run(test())
+                    logger.error(f"Erro ao salvar vaga: {e}")
+                    
+        except Exception as e:
+            logger.error(f"Erro no scraper para query '{query}': {e}")
+            
+    await scraper.client.aclose()
+    return saved_files
