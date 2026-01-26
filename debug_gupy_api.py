@@ -1,5 +1,7 @@
 import asyncio
+
 import httpx
+
 
 async def debug_gupy():
     url = "https://portal.api.gupy.io/api/v1/jobs"
@@ -17,7 +19,6 @@ async def debug_gupy():
     }
     
     # Test 3: No params
-    params3 = {}
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",

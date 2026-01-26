@@ -128,7 +128,7 @@ class TelegramNotifierV2:
 
         try:
             # Tenta fazer parse da URL
-            parsed = urllib.parse.urlparse(url)
+            urllib.parse.urlparse(url)
 
             # Reconstrói a URL com encoding correto
             # Mantém a URL como está se já estiver bem formada

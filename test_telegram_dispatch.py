@@ -58,7 +58,7 @@ def get_jobs_from_db(db_path: str = "data/gold/vagas.duckdb", limit: int = 5) ->
     try:
         result = conn.execute(query).fetchall()
         columns = [desc[0] for desc in conn.description]
-        jobs = [dict(zip(columns, row)) for row in result]
+        jobs = [dict(zip(columns, row, strict=False)) for row in result]
         conn.close()
         return jobs
     except Exception as e:

@@ -14,14 +14,13 @@ Uso:
 import argparse
 import asyncio
 import json
-import sys
 from datetime import datetime
 from pathlib import Path
 
 import structlog
 
-from src.quality_gate_v2 import QualityGateV2  # Usando V2 por padrão
 from src.config.config_loader import config
+from src.quality_gate_v2 import QualityGateV2  # Usando V2 por padrão
 
 # Configuração de logging estruturado
 structlog.configure(
@@ -41,7 +40,8 @@ logger = structlog.get_logger()
 
 
 
-from datetime import datetime, timedelta
+from datetime import timedelta
+
 
 async def run_bronze(query: str, max_jobs: int, platform: str = "all") -> list[str]:
     """
@@ -63,7 +63,7 @@ async def run_bronze(query: str, max_jobs: int, platform: str = "all") -> list[s
     
     if last_run_file.exists():
         try:
-            with open(last_run_file, "r") as f:
+            with open(last_run_file) as f:
                 data = json.load(f)
                 last_ts = data.get("last_run_at")
                 if last_ts:
@@ -215,8 +215,8 @@ async def run_notify(platform: str = "all") -> int:
     """Envia notificações Telegram (usa QualityGateV2)."""
     logger.info("Enviando notificações...")
     
+    from src.notifications.telegram import JobNotification  # Compatibilidade de modelo
     from src.notifications.telegram_v2 import TelegramNotifierV2
-    from src.notifications.telegram import JobNotification # Compatibilidade de modelo
 
     notifier = TelegramNotifierV2()
     
@@ -285,7 +285,7 @@ async def run_notify(platform: str = "all") -> int:
 
     if jobs_to_notify:
         logger.info(f"Notificando {len(jobs_to_notify)} vagas aprovadas pelo GateV2")
-        settings = config.get_telegram_config()
+        config.get_telegram_config()
         # Envia resumo
         sent_count = await notifier.send_job_summary(jobs_to_notify, only_new=True)
         return sent_count

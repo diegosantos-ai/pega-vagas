@@ -221,7 +221,7 @@ class WorkdayScraper:
                     )
 
             # Continua buscando em filhos
-            for key, value in data.items():
+            for _key, value in data.items():
                 if isinstance(value, (dict, list)):
                     jobs.extend(self._recursive_job_search(value, depth + 1))
 
@@ -265,7 +265,7 @@ class WorkdayScraper:
                 await asyncio.sleep(3)
 
                 # Scroll para carregar mais vagas (paginação lazy)
-                for i in range(3):
+                for _i in range(3):
                     await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
                     await asyncio.sleep(2)
 

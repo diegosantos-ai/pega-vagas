@@ -2,14 +2,12 @@
 Módulo de scrapers - implementações por plataforma.
 """
 
-from src.ingestion.scrapers.api_scrapers import GupySearchScraper
+# Compatibilidade para quem importar 'src.ingestion.scrapers'
+from src.ingestion.scrapers.api_scrapers import GupySearchScraper, run_search_scrapers
 from src.ingestion.scrapers.base import BaseScraper
 from src.ingestion.scrapers.gupy import GupyScraper
 from src.ingestion.scrapers.vagas import VagasScraper
 from src.ingestion.scrapers.workday import WorkdayScraper
-
-# Compatibilidade para quem importar 'src.ingestion.scrapers'
-from src.ingestion.scrapers.api_scrapers import run_search_scrapers
 
 __all__ = [
     "BaseScraper",

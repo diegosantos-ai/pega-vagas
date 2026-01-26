@@ -270,17 +270,6 @@ class SimplePipeline:
             normalized_title = normalize_job_title(title)
 
             # Aceita apenas títulos de interesse
-            valid_titles = [
-                "Data Engineer",
-                "Data Scientist",
-                "Data Analyst",
-                "Full Stack Developer",
-                "Back End Developer",
-                "Machine Learning Engineer",
-                "Analytics Engineer",
-                "BI Analyst",
-                "Data Architect",
-            ]
 
             if normalized_title == "Outro":
                 # Verifica se o título contém keywords

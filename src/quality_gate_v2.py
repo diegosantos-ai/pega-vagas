@@ -336,7 +336,7 @@ class QualityGateV2:
         # Extrai dados
         title = job_data.get("title", "").strip()
         description = job_data.get("description", "").strip()
-        url = job_data.get("url", "")
+        job_data.get("url", "")
 
         if not title or not description:
             return JobScore(

@@ -70,7 +70,7 @@ def count_files(root: Path) -> dict[str, int]:
     # Simple count for now, comprehensive tracking would require git diff or extensive history
     exclude = {".git", "node_modules", ".next", "dist", "build", ".agent", ".gemini", "__pycache__"}
 
-    for root_dir, dirs, files in os.walk(root):
+    for _root_dir, dirs, files in os.walk(root):
         dirs[:] = [d for d in dirs if d not in exclude]
         stats["total"] += len(files)
 

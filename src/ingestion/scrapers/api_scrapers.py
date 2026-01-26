@@ -12,15 +12,13 @@ import json
 import time
 import urllib.parse
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-
+from typing import Any
 
 import httpx
 import structlog
 from bs4 import BeautifulSoup
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 logger = structlog.get_logger()
 
@@ -52,7 +50,7 @@ class BaseSearchScraper(ABC):
         pass
 
     @abstractmethod
-    async def search_jobs(self, query: str, limit: int = 50, since_date: Optional[datetime] = None) -> List[Dict[str, Any]]:
+    async def search_jobs(self, query: str, limit: int = 50, since_date: datetime | None = None) -> list[dict[str, Any]]:
         """
         Busca vagas por palavra-chave.
         Args:
@@ -62,7 +60,7 @@ class BaseSearchScraper(ABC):
         """
         pass
 
-    async def _save_job(self, job: Dict[str, Any], query: str) -> Path:
+    async def _save_job(self, job: dict[str, Any], query: str) -> Path:
         """Salva uma vaga no formato Bronze."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         job_id = str(job.get("id", job.get("jobId", timestamp)))
@@ -94,7 +92,7 @@ class GupySearchScraper(BaseSearchScraper):
     platform_name = "gupy"
     API_URL = "https://portal.api.gupy.io/api/v1/jobs"
 
-    async def search_jobs(self, query: str, limit: int = 50, since_date: Optional[datetime] = None) -> List[Dict[str, Any]]:
+    async def search_jobs(self, query: str, limit: int = 50, since_date: datetime | None = None) -> list[dict[str, Any]]:
         logger.info(f"[{self.platform_name}] Buscando: '{query}' (Desde: {since_date or 'inicio'})")
         
         all_jobs = []
@@ -149,7 +147,6 @@ class GupySearchScraper(BaseSearchScraper):
                 seen_ids.update(new_ids)
 
                 filtered_jobs_in_page = []
-                stop_fetching = False
 
                 for job in jobs:
                     # Parse da data
@@ -211,7 +208,7 @@ class RemoteOkScraper(BaseSearchScraper):
     # RemoteOK retorna TUDO em um JSON gigante, não tem paginação real na API publica
     API_URL = "https://remoteok.com/api"
 
-    async def search_jobs(self, query: str, limit: int = 50, since_date: Optional[datetime] = None) -> List[Dict[str, Any]]:
+    async def search_jobs(self, query: str, limit: int = 50, since_date: datetime | None = None) -> list[dict[str, Any]]:
         logger.info(f"[{self.platform_name}] Buscando via API para tags relacionadas a '{query}'...")
         
         # RemoteOK funciona melhor com tags. Vamos tentar mapear query -> tag ou usar busca textual
@@ -288,7 +285,7 @@ class ProgramathorScraper(BaseSearchScraper):
     platform_name = "programathor"
     BASE_URL = "https://programathor.com.br/jobs"
 
-    async def search_jobs(self, query: str, limit: int = 50, since_date: Optional[datetime] = None) -> List[Dict[str, Any]]:
+    async def search_jobs(self, query: str, limit: int = 50, since_date: datetime | None = None) -> list[dict[str, Any]]:
         logger.info(f"[{self.platform_name}] Scraping HTML para '{query}'...")
         
         all_jobs = []
@@ -344,7 +341,7 @@ class ProgramathorScraper(BaseSearchScraper):
                         all_jobs.append(job_obj)
                         if len(all_jobs) >= limit: break
                         
-                    except Exception as e:
+                    except Exception:
                         continue
 
                 page += 1
@@ -362,10 +359,10 @@ class ProgramathorScraper(BaseSearchScraper):
 # =============================================================================
 
 async def run_search_scrapers(
-    queries: List[str],
+    queries: list[str],
     max_jobs: int = 50,
-    since_date: Optional[datetime] = None
-) -> List[str]:
+    since_date: datetime | None = None
+) -> list[str]:
     """
     Executa TODOS os scrapers configurados em sequência (One-Shot).
     """

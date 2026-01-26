@@ -484,7 +484,7 @@ def extract_location_from_text(text: str) -> dict:
     if not text:
         return result
 
-    text_lower = text.lower()
+    text.lower()
 
     # Verifica se é remoto
     for pattern in REMOTE_INDICATORS:
