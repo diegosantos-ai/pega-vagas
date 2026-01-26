@@ -10,10 +10,12 @@ Foco:
 import asyncio
 import json
 import time
+import urllib.parse
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+
 
 import httpx
 import structlog
@@ -162,10 +164,13 @@ class GupySearchScraper(BaseSearchScraper):
 
                     # 3. Filtro de Data
                     if since_date and job_date:
-                        # Se a vaga é mais antiga que nossa janela, paramos SE confiarmos na ordenação
-                        # Como Gupy as vezes mistura, vamos apenas IGNORAR a vaga se for velha,
-                        # mas continuamos olhando a página (safety).
-                        # Se encontrarmos MUITAS vagas velhas seguidas, ai paramos.
+                        # Garante que ambas as datas tenham (ou não) timezone para comparação
+                        # Se since_date for naive, assumimos que é local e comparamos ignorando tz do job
+                        if since_date.tzinfo is None and job_date.tzinfo is not None:
+                             job_date = job_date.replace(tzinfo=None)
+                        elif since_date.tzinfo is not None and job_date.tzinfo is None:
+                             since_date = since_date.replace(tzinfo=None)
+
                         if job_date < since_date:
                             # Opcional: Contar streak de vagas velhas para dar break
                             continue
@@ -238,6 +243,13 @@ class RemoteOkScraper(BaseSearchScraper):
                 if date_str and since_date:
                     try:
                         job_date = datetime.fromisoformat(date_str.split("+")[0])
+                        
+                        # Normalização de TZ
+                        if since_date.tzinfo is None and job_date.tzinfo is not None:
+                             job_date = job_date.replace(tzinfo=None)
+                        elif since_date.tzinfo is not None and job_date.tzinfo is None:
+                             since_date = since_date.replace(tzinfo=None)
+                             
                         if job_date < since_date:
                             continue
                     except:

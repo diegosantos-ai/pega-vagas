@@ -285,7 +285,9 @@ async def run_notify(platform: str = "all") -> int:
 
     if jobs_to_notify:
         logger.info(f"Notificando {len(jobs_to_notify)} vagas aprovadas pelo GateV2")
-        sent_count = await notifier.send_batch_summary(jobs_to_notify, only_new=True)
+        settings = config.get_telegram_config()
+        # Envia resumo
+        sent_count = await notifier.send_job_summary(jobs_to_notify, only_new=True)
         return sent_count
     else:
         logger.info("Nenhuma vaga qualificada para notificar.")
