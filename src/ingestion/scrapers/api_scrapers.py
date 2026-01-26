@@ -354,22 +354,8 @@ class GreenhouseAPIScraper(BaseAPIScraper):
 
         # Verifica Brasil
         if brazil_only:
-            brazil_keywords = [
-                "brazil",
-                "brasil",
-                "são paulo",
-                "sao paulo",
-                "rio de janeiro",
-                "belo horizonte",
-                "curitiba",
-                "porto alegre",
-                "florianópolis",
-                "brasília",
-                "brasilia",
-                "recife",
-                "salvador",
-                "fortaleza",
-            ]
+            # brazil_keywords unused in logic below
+            # brazil_keywords = [...]
             invalid_countries = [
                 "spain",
                 "espanha",

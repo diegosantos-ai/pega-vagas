@@ -21,7 +21,7 @@ class ConfigLoader:
     def __new__(cls):
         """Singleton pattern para garantir uma única instância."""
         if cls._instance is None:
-            cls._instance = super(ConfigLoader, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance._load_config()
         return cls._instance
 
@@ -98,7 +98,7 @@ class ConfigLoader:
         search_terms = self.get("search_terms", {})
         all_terms = []
 
-        for category, terms in search_terms.items():
+        for _, terms in search_terms.items():
             if isinstance(terms, list):
                 all_terms.extend(terms)
 

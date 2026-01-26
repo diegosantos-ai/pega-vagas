@@ -215,11 +215,8 @@ def load_proxy_from_env() -> ProxyManager | None:
         logger.warning("Proxy não configurado - usando conexão direta")
         return None
 
-    provider_str = os.getenv("PROXY_PROVIDER", "custom").lower()
+    # provider_str = os.getenv("PROXY_PROVIDER", "custom").lower()
+    # Logica de provider ignorada pois from_url força CUSTOM
 
-    try:
-        provider = ProxyProvider(provider_str)
-    except ValueError:
-        provider = ProxyProvider.CUSTOM
 
     return ProxyManager.from_url(proxy_url)
