@@ -54,7 +54,7 @@ jobs:
       # 12. Salvar cache de vagas vistas (corrigido com save-always)
       - name: Save seen jobs cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: data/.seen_jobs.json
           key: seen-jobs-${{ github.run_number }}
