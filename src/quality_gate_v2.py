@@ -9,6 +9,8 @@ import re
 
 from pydantic import BaseModel, Field
 
+from src.config.config_loader import config
+
 logger = logging.getLogger("QualityGate_v2")
 
 
@@ -35,8 +37,8 @@ class QualityGateV2:
     def __init__(
         self,
         target_roles: list[str] = None,
-        min_score_threshold: int = 50,
-        strict_remote: bool = True,
+        min_score_threshold: int = None,
+        strict_remote: bool = None,
     ):
         """
         Args:
@@ -44,8 +46,8 @@ class QualityGateV2:
             min_score_threshold: Pontuação mínima para aprovação (0-100)
             strict_remote: Se True, rejeita qualquer menção de híbrido/presencial
         """
-        self.min_score_threshold = min_score_threshold
-        self.strict_remote = strict_remote
+        self.min_score_threshold = min_score_threshold if min_score_threshold is not None else config.get_min_score_threshold()
+        self.strict_remote = strict_remote if strict_remote is not None else config.get("quality_gate.strict_remote", True)
 
         # Padrões de detecção de REMOTO (positivos)
         self.REMOTE_POSITIVE = [
@@ -178,48 +180,42 @@ class QualityGateV2:
         text_blob = (title + " " + description).lower()
         flags = []
 
-        # Locais que indicam Brasil
-        brazil_positive = [
-            r"\bbrasil\b",
-            r"\bbrasileiro\b",
-            r"\bbrazil\b",
-            r"\bbrazilian\b",
-            r"\bsão paulo\b",
-            r"\brio de janeiro\b",
-            r"\bbelo horizonte\b",
-            r"\bcuritiba\b",
-            r"\brecife\b",
-        ]
-
-        # Locais que indicam fora do Brasil
+        # RED FLAGS - Locais internacionais (rejeita)
         brazil_negative = [
-            r"\busa\b",
-            r"\bunited states\b",
-            r"\beuropa\b",
-            r"\beurope\b",
-            r"\bportugal\b",
-            r"\blisboa\b",
-            r"\bmadrid\b",
-            r"\bbarcelona\b",
-            r"\bsingapura\b",
-            r"\bsingapore\b",
-            r"\btóquio\b",
-            r"\btokyo\b",
-            r"\brelocation\b",
-            r"\brelocate\b",
+            r"usa", r"united states", r"america",
+            r"europa", r"europe", r"uk",
+            r"portugal", r"lisboa", r"madrid",
+            r"barcelona", r"singapore", r"tokyo",
+            r"relocation", r"relocate",
         ]
 
-        # Verifica negativos (rejeita)
         for pattern in brazil_negative:
             if re.search(pattern, text_blob):
                 flags.append("INTERNATIONAL_LOCATION")
                 return False, flags
 
-        # Se menciona Brasil explicitamente, aprova
+        # GREEN FLAGS - Brasil
+        brazil_positive = [
+            r"brasil", r"brazil", r"brasileiro",
+            r"são paulo", r"rio de janeiro",
+            r"belo horizonte", r"curitiba",
+            r"recife", r"salvador",
+            r"clt", r"pj", r"reais",
+        ]
+
         for pattern in brazil_positive:
             if re.search(pattern, text_blob):
                 flags.append("BRAZIL_LOCATION_CONFIRMED")
                 return True, flags
+
+        # Verifica se é worldwide
+        worldwide = [r"anywhere", r"worldwide", r"latam"]
+        if any(re.search(p, text_blob) for p in worldwide):
+            flags.append("WORLDWIDE_REMOTE")
+            return True, flags
+
+        flags.append("NO_BRAZIL_CONFIRMATION")
+        return False, flags
 
         # Se é 100% remoto e não menciona local específico, aprova
         flags.append("REMOTE_NO_LOCATION_RESTRICTION")
@@ -262,9 +258,9 @@ class QualityGateV2:
         junior_penalty = {
             "estágio": -20,
             "intern": -20,
-            "junior": -10,
-            "jr.": -10,
-            "jr ": -10,
+            "junior": -5,
+            "jr.": -5,
+            "jr ": -5,
             "trainee": -15,
         }
 
@@ -407,7 +403,7 @@ class QualityGateV2:
 
 # Teste rápido
 if __name__ == "__main__":
-    gate = QualityGateV2(min_score_threshold=50)
+    gate = QualityGateV2(min_score_threshold=30)
 
     # Teste 1: Vaga ruim (híbrida)
     bad_job_1 = {

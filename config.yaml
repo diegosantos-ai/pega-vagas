@@ -47,7 +47,7 @@ search_terms:
 # --- FILTROS DE QUALIDADE ---
 quality_gate:
   # Pontuação mínima para notificação (0-100)
-  min_score_threshold: 50
+  min_score_threshold: 30
 
   # Se True, rejeita qualquer menção de híbrido/presencial
   strict_remote: true
