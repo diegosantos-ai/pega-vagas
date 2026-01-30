@@ -46,8 +46,16 @@ class QualityGateV2:
             min_score_threshold: Pontuação mínima para aprovação (0-100)
             strict_remote: Se True, rejeita qualquer menção de híbrido/presencial
         """
-        self.min_score_threshold = min_score_threshold if min_score_threshold is not None else config.get_min_score_threshold()
-        self.strict_remote = strict_remote if strict_remote is not None else config.get("quality_gate.strict_remote", True)
+        self.min_score_threshold = (
+            min_score_threshold
+            if min_score_threshold is not None
+            else config.get_min_score_threshold()
+        )
+        self.strict_remote = (
+            strict_remote
+            if strict_remote is not None
+            else config.get("quality_gate.strict_remote", True)
+        )
 
         # Padrões de detecção de REMOTO (positivos)
         self.REMOTE_POSITIVE = [
@@ -182,11 +190,20 @@ class QualityGateV2:
 
         # RED FLAGS - Locais internacionais (rejeita)
         brazil_negative = [
-            r"usa", r"united states", r"america",
-            r"europa", r"europe", r"uk",
-            r"portugal", r"lisboa", r"madrid",
-            r"barcelona", r"singapore", r"tokyo",
-            r"relocation", r"relocate",
+            r"usa",
+            r"united states",
+            r"america",
+            r"europa",
+            r"europe",
+            r"uk",
+            r"portugal",
+            r"lisboa",
+            r"madrid",
+            r"barcelona",
+            r"singapore",
+            r"tokyo",
+            r"relocation",
+            r"relocate",
         ]
 
         for pattern in brazil_negative:
@@ -196,11 +213,18 @@ class QualityGateV2:
 
         # GREEN FLAGS - Brasil
         brazil_positive = [
-            r"brasil", r"brazil", r"brasileiro",
-            r"são paulo", r"rio de janeiro",
-            r"belo horizonte", r"curitiba",
-            r"recife", r"salvador",
-            r"clt", r"pj", r"reais",
+            r"brasil",
+            r"brazil",
+            r"brasileiro",
+            r"são paulo",
+            r"rio de janeiro",
+            r"belo horizonte",
+            r"curitiba",
+            r"recife",
+            r"salvador",
+            r"clt",
+            r"pj",
+            r"reais",
         ]
 
         for pattern in brazil_positive:
@@ -385,7 +409,9 @@ class QualityGateV2:
             return JobScore(
                 is_valid=False,
                 score=relevance_score,
-                rejection_reason=f"LOW_RELEVANCE (score: {relevance_score} < {self.min_score_threshold})",
+                rejection_reason=(
+                    f"LOW_RELEVANCE (score: {relevance_score} < {self.min_score_threshold})"
+                ),
                 flags=flags,
                 details=details,
             )
@@ -408,21 +434,29 @@ if __name__ == "__main__":
     # Teste 1: Vaga ruim (híbrida)
     bad_job_1 = {
         "title": "Analista de Suporte Júnior",
-        "description": "Venha trabalhar no nosso escritório incrível. Modelo híbrido, 3x na semana.",
+        "description": (
+            "Venha trabalhar no nosso escritório incrível. Modelo híbrido, 3x na semana."
+        ),
         "url": "https://example.com/job1",
     }
 
     # Teste 2: Vaga boa (Data Engineer remoto)
     good_job = {
         "title": "Senior Data Engineer",
-        "description": "Atuar 100% remoto em projetos de IA e automação. Stack: Python, Spark, Airflow, AWS. Contratação CLT Brasil.",
+        "description": (
+            "Atuar 100% remoto em projetos de IA e automação. "
+            "Stack: Python, Spark, Airflow, AWS. Contratação CLT Brasil."
+        ),
         "url": "https://example.com/job2",
     }
 
     # Teste 3: Vaga de Automação
     automation_job = {
         "title": "Automation Engineer",
-        "description": "Fully remote position. Work on RPA and automation projects. Experience with Python and UiPath required. Based in Brazil.",
+        "description": (
+            "Fully remote position. Work on RPA and automation projects. "
+            "Experience with Python and UiPath required. Based in Brazil."
+        ),
         "url": "https://example.com/job3",
     }
 
