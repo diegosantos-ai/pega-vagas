@@ -310,7 +310,14 @@ class TelegramNotifierV2:
 
         # Envia resumo
         summary_msg = self._format_job_summary_message(jobs)
-        await self.send_message(summary_msg)
+        summary_success = await self.send_message(summary_msg)
+
+        if not summary_success:
+            logger.error("Falha ao enviar resumo de vagas")
+            # Mesmo falhando o resumo, marca como vistas para não tentar de novo
+            for job in jobs:
+                self.mark_as_seen(job)
+            return 0
 
         sent = 1
 
@@ -319,15 +326,21 @@ class TelegramNotifierV2:
             import asyncio
 
             for job in jobs:
-                detail_msg = self._format_job_detail_message(job)
-                success = await self.send_message(detail_msg)
+                try:
+                    detail_msg = self._format_job_detail_message(job)
+                    success = await self.send_message(detail_msg)
 
-                if success:
-                    self.mark_as_seen(job)
-                    sent += 1
+                    if success:
+                        self.mark_as_seen(job)
+                        sent += 1
+                    else:
+                        logger.warning(f"Falha ao enviar notificação para: {job.title}")
 
-                # Delay para evitar rate limit
-                await asyncio.sleep(0.5)
+                    # Delay para evitar rate limit
+                    await asyncio.sleep(0.5)
+                except Exception as e:
+                    logger.error(f"Erro ao enviar notificação para {job.title}: {e}")
+                    continue
 
         else:
             # Apenas marca como vistas

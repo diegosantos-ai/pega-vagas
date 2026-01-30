@@ -39,14 +39,13 @@ structlog.configure(
 logger = structlog.get_logger()
 
 
-
 from datetime import timedelta
 
 
 async def run_bronze(query: str, max_jobs: int, platform: str = "all") -> list[str]:
     """
     Executa camada Bronze (scraping via busca).
-    
+
     Args:
         query: Termo de busca (ex: "Data Engineer")
         max_jobs: Limite de vagas
@@ -56,11 +55,11 @@ async def run_bronze(query: str, max_jobs: int, platform: str = "all") -> list[s
 
     saved_files = []
     queries = [q.strip() for q in query.split(",")]
-    
+
     # 1. Gestão de Estado (Date Logic)
     last_run_file = Path("data/.last_run.json")
     since_date = None
-    
+
     if last_run_file.exists():
         try:
             with open(last_run_file) as f:
@@ -71,7 +70,7 @@ async def run_bronze(query: str, max_jobs: int, platform: str = "all") -> list[s
                     logger.info(f"Última execução em: {since_date}. Buscando vagas novas...")
         except Exception as e:
             logger.warning(f"Erro lendo .last_run.json: {e}")
-            
+
     if not since_date:
         # Default: 72 horas atrás
         since_date = datetime.now() - timedelta(hours=72)
@@ -80,18 +79,17 @@ async def run_bronze(query: str, max_jobs: int, platform: str = "all") -> list[s
     # 2. Executa Scrapers (One-Shot)
     try:
         from src.ingestion.scrapers.api_scrapers import run_search_scrapers
-        
+
         logger.info("Executando Scrapers de Busca (One-Shot)...")
         files = await run_search_scrapers(queries=queries, max_jobs=max_jobs, since_date=since_date)
         saved_files.extend(files)
-        
+
         # 3. Atualiza Estado se houve sucesso
         with open(last_run_file, "w") as f:
-            json.dump({
-                "last_run_at": datetime.now().isoformat(),
-                "files_count": len(saved_files)
-            }, f)
-            
+            json.dump(
+                {"last_run_at": datetime.now().isoformat(), "files_count": len(saved_files)}, f
+            )
+
     except Exception as e:
         logger.error(f"Erro nos Scrapers: {e}")
 
@@ -119,7 +117,7 @@ async def run_silver() -> int:
     # Processa recursivamente (suporta subpastas gupy, linkedin, etc)
     for json_file in bronze_dir.rglob("*.json"):
         # Pula arquivos de controle/logs se houver
-        if json_file.name.startswith("."): 
+        if json_file.name.startswith("."):
             continue
 
         try:
@@ -133,15 +131,15 @@ async def run_silver() -> int:
                 data = json.load(f)
 
             # --- Logica de Normalização de Entrada ---
-            
+
             metadata = data.get("_metadata", {})
             html = data.get("html", "")
-            
+
             # Se não tem HTML, tenta montar um (caso de APIs que retornam texto puro)
             if not html:
                 description = data.get("description", data.get("content", ""))
                 title_api = data.get("title", data.get("name", ""))
-                
+
                 if description:
                     html = f"<h1>{title_api}</h1><div>{description}</div>"
 
@@ -196,9 +194,9 @@ def run_gold() -> int:
             logger.warning(f"Erro leitura gold {json_file.name}: {e}")
 
     loaded = load_to_gold(conn, vagas)
-    run_transforms() # Gera views agregadas
+    run_transforms()  # Gera views agregadas
     conn.close()
-    
+
     logger.info(f"Gold finalizada: {loaded} vagas carregadas")
     return loaded
 
@@ -206,6 +204,7 @@ def run_gold() -> int:
 def run_export() -> list[str]:
     """Exporta para Parquet/CSV."""
     from src.analytics.transforms import export_to_parquet
+
     files = export_to_parquet()
     logger.info(f"Exportados {len(files)} arquivos")
     return files
@@ -214,30 +213,54 @@ def run_export() -> list[str]:
 async def run_notify(platform: str = "all") -> int:
     """Envia notificações Telegram (usa QualityGateV2)."""
     logger.info("Enviando notificações...")
-    
-    from src.notifications.telegram import JobNotification  # Compatibilidade de modelo
-    from src.notifications.telegram_v2 import TelegramNotifierV2
 
-    notifier = TelegramNotifierV2()
-    
-    # Se não configurado, aborta
-    if not config.get_telegram_config():
-        logger.warning("Telegram não configurado")
+    from src.notifications.telegram_v2 import JobNotification, TelegramNotifierV2
+    import os
+    import traceback
+
+    # Verifica se Telegram está configurado via variáveis de ambiente
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+
+    if not bot_token or not chat_id:
+        logger.warning(
+            "Telegram não configurado. "
+            f"TELEGRAM_BOT_TOKEN={'configurado' if bot_token else 'ausent'}, "
+            f"TELEGRAM_CHAT_ID={'configurado' if chat_id else 'ausente'}"
+        )
+        return 0
+
+    try:
+        notifier = TelegramNotifierV2()
+    except ValueError as e:
+        logger.error(f"Erro ao inicializar Telegram notifier: {e}")
+        return 0
+    except Exception as e:
+        logger.error(f"Erro inesperado ao inicializar notifier: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return 0
 
     silver_dir = Path("data/silver")
     jobs_to_notify = []
-    
+
+    # Verifica se diretório silver existe
+    if not silver_dir.exists():
+        logger.warning(f"Diretório {silver_dir} não existe")
+        return 0
+
     # Quality Gate V2
     gate = QualityGateV2()
 
-    for json_file in silver_dir.glob("*_processed.json"):
+    json_files = list(silver_dir.glob("*_processed.json"))
+    logger.info(f"Encontrados {len(json_files)} arquivos no silver")
+
+    for json_file in json_files:
         try:
             with open(json_file, encoding="utf-8") as f:
                 data = json.load(f)
 
-            vaga = data.get("vaga", data) # Suporta aninhamento antigo e novo
-            
+            vaga = data.get("vaga", data)  # Suporta aninhamento antigo e novo
+
             # Adapta para o formato do GateV2
             job_data_for_gate = {
                 "title": vaga.get("titulo_normalizado") or vaga.get("titulo_original"),
@@ -245,17 +268,17 @@ async def run_notify(platform: str = "all") -> int:
                 "company": vaga.get("empresa", ""),
                 "url": vaga.get("url_origem", ""),
             }
-            
+
             # Avaliação
             evaluation = gate.evaluate(job_data_for_gate)
-            
+
             if evaluation.is_valid:
                 # Prepara objeto de notificação
                 # Extração simples de skills para display
                 skills_list = []
                 if "skills" in vaga and isinstance(vaga["skills"], list):
-                     skills_list = [s.get("nome", s) for s in vaga["skills"] if isinstance(s, dict)]
-                
+                    skills_list = [s.get("nome", s) for s in vaga["skills"] if isinstance(s, dict)]
+
                 # Formata salário
                 sal_dict = vaga.get("salario", {})
                 s_min = sal_dict.get("valor_minimo") if isinstance(sal_dict, dict) else None
@@ -270,12 +293,10 @@ async def run_notify(platform: str = "all") -> int:
                     platform=vaga.get("plataforma", platform),
                     salary_min=s_min,
                     salary_max=s_max,
-                    skills=skills_list
+                    skills=skills_list,
+                    score=evaluation.score,
                 )
-                
-                # Anexa o score para o notificador usar (se suportado) ou apenas logar
-                job_obj.score = evaluation.score 
-                
+
                 jobs_to_notify.append(job_obj)
             else:
                 logger.debug(f"Rejeitado ({evaluation.score}): {job_data_for_gate['title']}")
@@ -283,12 +304,19 @@ async def run_notify(platform: str = "all") -> int:
         except Exception as e:
             logger.warning(f"Erro preparando notificação de {json_file.name}: {e}")
 
+    logger.info(f"Total de vagas válidas para notificar: {len(jobs_to_notify)}")
+
     if jobs_to_notify:
         logger.info(f"Notificando {len(jobs_to_notify)} vagas aprovadas pelo GateV2")
-        config.get_telegram_config()
-        # Envia resumo
-        sent_count = await notifier.send_job_summary(jobs_to_notify, only_new=True)
-        return sent_count
+        try:
+            # Envia resumo
+            sent_count = await notifier.send_job_summary(jobs_to_notify, only_new=True)
+            logger.info(f"Notificações enviadas: {sent_count}")
+            return sent_count
+        except Exception as e:
+            logger.error(f"Erro ao enviar notificações Telegram: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return 0
     else:
         logger.info("Nenhuma vaga qualificada para notificar.")
         return 0
@@ -323,7 +351,7 @@ def main():
     subparsers.add_parser("silver")
     subparsers.add_parser("gold")
     subparsers.add_parser("export")
-    
+
     # Notify
     subparsers.add_parser("notify")
 
@@ -350,6 +378,7 @@ def main():
         asyncio.run(run_full_pipeline(args.query, args.max_jobs, args.platform, not args.no_notify))
     else:
         parser.print_help()
+
 
 if __name__ == "__main__":
     main()

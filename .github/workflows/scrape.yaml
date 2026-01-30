@@ -1,67 +1,223 @@
 name: Job Scraping Pipeline
 
 on:
-  # ... (igual)
+  schedule:
+    # Executa a cada 3 horas
+    - cron: '0 */3 * * *'
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Termo de busca'
+        required: false
+        default: 'Data Engineer'
+        type: string
+      max_jobs:
+        description: 'Máximo de vagas'
+        required: false
+        default: '50'
+        type: string
+      dry_run:
+        description: 'Dry run (sem enviar notificações)'
+        required: false
+        default: false
+        type: boolean
 
 env:
-  # ... (igual)
+  PYTHON_VERSION: '3.11'
+  GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+  TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+  TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+  PROXY_URL: ${{ secrets.PROXY_URL }}
 
 jobs:
   scrape-and-process:
-    name: 🔍 Coleta e Processamento
+    name: Coleta e Processamento de Vagas
     runs-on: ubuntu-latest
     
     steps:
-      # ... (steps 1 a 10 iguais)
+      # 1. Checkout do código
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # 11. Envia notificações Telegram (adicionado debug e tratamento melhor)
-      - name: Send Telegram Notifications
-        if: ${{ github.event.inputs.dry_run != 'true' }}
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      # 2. Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      # 3. Instala dependências
+      - name: Install dependencies
         run: |
-          echo "📲 Enviando notificações..."
-          # Adiciona try-catch no Python para capturar erros e não falhar o job
-          python -c "
-          import sys
-          import os
-          import httpx  # Assumindo que httpx está instalado; se não, adicione no install
-          
-          try:
-              from src.pipeline import notify  # Ajuste se for um módulo diferente
-              notify()  # Ou chame a função específica
-              print('✅ Notificações enviadas com sucesso')
-          except Exception as e:
-              print(f'⚠️ Erro ao enviar notificações: {e}', file=sys.stderr)
-              sys.exit(0)  # Sai com 0 para não falhar o job (use continue-on-error se preferir falhar)
-          "
-        continue-on-error: true  # Mantém, mas agora o erro não crasha
+          python -m pip install --upgrade pip
+          pip install -e .
 
-      # 11.1 NOVO: Garante que .seen_jobs.json exista antes de salvar cache
+      # 4. Cria estrutura de diretórios e arquivo de cache inicial
+      - name: Setup directories and cache file
+        run: |
+          mkdir -p data/bronze
+          mkdir -p data/silver
+          mkdir -p data/gold
+          mkdir -p data/cache
+          
+          # Cria arquivo de cache se não existir
+          if [ ! -f data/.seen_jobs.json ]; then
+            echo '{"seen": [], "updated_at": ""}' > data/.seen_jobs.json
+            echo "Arquivo .seen_jobs.json criado"
+          fi
+          
+          echo "=== Estrutura de dados ==="
+          ls -la data/
+          cat data/.seen_jobs.json
+
+      # 5. Restore cache de vagas vistas (usando key fixa)
+      - name: Restore seen jobs cache
+        id: cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: data/.seen_jobs.json
+          key: seen-jobs-cache
+          restore-keys: |
+            seen-jobs-
+
+      # 6. Mostra estado do cache restaurado
+      - name: Show cache status
+        run: |
+          echo "=== Cache restaurado ==="
+          if [ -f data/.seen_jobs.json ]; then
+            echo "Arquivo existe:"
+            cat data/.seen_jobs.json
+            count=$(cat data/.seen_jobs.json | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('seen', [])))" 2>/dev/null || echo "0")
+            echo "Vagas em cache: $count"
+          else
+            echo "Arquivo não existe, criando..."
+            echo '{"seen": [], "updated_at": ""}' > data/.seen_jobs.json
+          fi
+
+      # 7. Executa camada Bronze (coleta)
+      - name: Run Bronze - Coleta de Vagas
+        run: |
+          echo "Iniciando coleta de vagas..."
+          python -m src.pipeline bronze \
+            --query "${{ github.event.inputs.query || 'Data Engineer,Engenheiro de Dados' }}" \
+            --max-jobs ${{ github.event.inputs.max_jobs || 50 }} 2>&1
+          echo "=== Arquivos Bronze ==="
+          ls -la data/bronze/ 2>/dev/null || echo "Diretório bronze vazio"
+        continue-on-error: true
+
+      # 8. Executa camada Silver (processamento LLM)
+      - name: Run Silver - Processamento
+        run: |
+          echo "Processando vagas com LLM..."
+          python -m src.pipeline silver 2>&1
+          echo "=== Arquivos Silver ==="
+          ls -la data/silver/ 2>/dev/null || echo "Diretório silver vazio"
+        continue-on-error: true
+
+      # 9. Executa camada Gold (DuckDB/transforms)
+      - name: Run Gold - Transformações
+        run: |
+          echo "Executando transformações..."
+          python -m src.pipeline gold 2>&1
+          echo "=== Arquivos Gold ==="
+          ls -la data/gold/ 2>/dev/null || echo "Diretório gold vazio"
+        continue-on-error: true
+
+      # 10. Exporta dados
+      - name: Export data
+        run: |
+          echo "Exportando dados..."
+          python -m src.pipeline export 2>&1
+        continue-on-error: true
+
+      # 11. Verifica se há vagas para notificar
+      - name: Check for jobs to notify
+        id: check-jobs
+        run: |
+          silver_count=$(find data/silver -name '*.json' 2>/dev/null | wc -l)
+          echo "Arquivos silver: $silver_count"
+          echo "silver_count=$silver_count" >> $GITHUB_OUTPUT
+          
+          if [ $silver_count -eq 0 ]; then
+            echo "⚠️ Nenhuma vaga processada para notificar"
+          fi
+
+      # 12. Envia notificações Telegram
+      - name: Send Telegram Notifications
+        if: ${{ github.event.inputs.dry_run != 'true' && steps.check-jobs.outputs.silver_count != '0' }}
+        run: |
+          echo "Enviando notificações para Telegram..."
+          echo "TELEGRAM_BOT_TOKEN está configurado: $([ -n "$TELEGRAM_BOT_TOKEN" ] && echo 'SIM' || echo 'NÃO')"
+          echo "TELEGRAM_CHAT_ID está configurado: $([ -n "$TELEGRAM_CHAT_ID" ] && echo 'SIM' || echo 'NÃO')"
+          
+          python -m src.pipeline notify 2>&1 || {
+            echo "⚠️ Erro ao enviar notificações, mas continuando..."
+            exit 0
+          }
+        continue-on-error: true
+
+      # 13. Garante que .seen_jobs.json exista antes de salvar cache
       - name: Ensure seen_jobs file exists
         if: always()
         run: |
           mkdir -p data/
           if [ ! -f data/.seen_jobs.json ]; then
-            echo '{"seen_jobs": []}' > data/.seen_jobs.json
-            echo "📝 Arquivo .seen_jobs.json criado vazio"
-          else
-            echo "📂 Arquivo .seen_jobs.json já existe"
+            echo '{"seen": [], "updated_at": ""}' > data/.seen_jobs.json
+            echo "Arquivo criado vazio"
           fi
-          cat data/.seen_jobs.json  # Debug: mostra conteúdo
+          
+          echo "=== Conteúdo final do cache ==="
+          cat data/.seen_jobs.json | python3 -m json.tool 2>/dev/null || cat data/.seen_jobs.json
+          
+          count=$(cat data/.seen_jobs.json | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('seen', [])))" 2>/dev/null || echo "0")
+          echo "Total de vagas em cache: $count"
 
-      # 12. Salvar cache de vagas vistas (corrigido com save-always)
+      # 14. Salva cache de vagas vistas (key fixa)
       - name: Save seen jobs cache
         if: always()
         uses: actions/cache/save@v4
         with:
           path: data/.seen_jobs.json
-          key: seen-jobs-${{ github.run_number }}
-          save-always: true  # Força save mesmo em falhas (disponível no v4)
+          key: seen-jobs-cache-${{ github.run_id }}
+          save-always: true
 
-      # ... (steps 13 a 15 iguais, mas adicione isso no Summary para mais info)
-      
-      # No step 15 (Summary), adicione esta linha extra para debug de cache:
-      # Após as contagens, adicione:
-      # echo "- Cache Seen Jobs: $( [ -f data/.seen_jobs.json ] && echo 'Existe' || echo 'Ausente' )" >> $GITHUB_STEP_SUMMARY
+      # 15. Upload artifacts (bronze/silver/gold)
+      - name: Upload job data artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: job-data-${{ github.run_number }}
+          path: |
+            data/bronze/*.json
+            data/silver/*.json
+            data/gold/*.parquet
+            data/.seen_jobs.json
+          retention-days: 7
+          if-no-files-found: warn
+
+      # 16. Summary
+      - name: Execution Summary
+        if: always()
+        run: |
+          echo "## 📊 Resumo da Execução" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Modo:** ${{ github.event.inputs.dry_run == 'true' && 'Dry Run' || 'Produção' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Query:** ${{ github.event.inputs.query || 'Data Engineer,Engenheiro de Dados' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Max Jobs:** ${{ github.event.inputs.max_jobs || 50 }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Contagem de arquivos
+          bronze_count=$(find data/bronze -name '*.json' 2>/dev/null | wc -l)
+          silver_count=$(find data/silver -name '*.json' 2>/dev/null | wc -l)
+          
+          echo "### 📁 Arquivos Gerados" >> $GITHUB_STEP_SUMMARY
+          echo "- Bronze: $bronze_count arquivos" >> $GITHUB_STEP_SUMMARY
+          echo "- Silver: $silver_count arquivos" >> $GITHUB_STEP_SUMMARY
+          
+          # Status do cache
+          if [ -f data/.seen_jobs.json ]; then
+            seen_count=$(cat data/.seen_jobs.json | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('seen', [])))" 2>/dev/null || echo "0")
+            echo "- Cache: $seen_count vagas vistas" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Cache: Ausente" >> $GITHUB_STEP_SUMMARY
+          fi
