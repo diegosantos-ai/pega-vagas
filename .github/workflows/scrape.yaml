@@ -73,7 +73,7 @@ jobs:
       # 5. Restore cache de vagas vistas (usando key fixa)
       - name: Restore seen jobs cache
         id: cache-restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: data/.seen_jobs.json
           key: seen-jobs-cache
@@ -175,7 +175,7 @@ jobs:
       # 14. Salva cache de vagas vistas (key fixa)
       - name: Save seen jobs cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: data/.seen_jobs.json
           key: seen-jobs-cache-${{ github.run_id }}
