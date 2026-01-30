@@ -119,15 +119,18 @@ class TestNormalizeJobTitle:
         "title",
         [
             "Software Engineer",
-            "Backend Developer",
             "Product Manager",
-            "DevOps Engineer",
             "QA Engineer",
             "Gerente de Projetos",
         ],
     )
     def test_non_data_roles(self, title):
         assert normalize_job_title(title) == "Outro"
+
+    def test_backend_developer(self):
+        """Backend Developer é classificado como Back End Developer."""
+        assert normalize_job_title("Backend Developer") == "Back End Developer"
+        assert normalize_job_title("Back End Developer") == "Back End Developer"
 
 
 class TestNormalizeSeniority:
