@@ -22,7 +22,7 @@ dependencies = [
     
     # Validation
     "pydantic>=2.9.0",
-    "pydantic-settings>=2.0.0",
+    "pydantic-settings>=2.13.1",
         
     # Utils
     "python-dotenv>=1.0.0",
