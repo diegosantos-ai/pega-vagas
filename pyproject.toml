@@ -16,7 +16,7 @@ dependencies = [
     "openai>=1.50.0",
     
     # Data Processing
-    "duckdb>=1.1.0",
+    "duckdb>=1.5.2",
     "pandas>=2.2.0",
     "pyarrow>=18.0.0",
     
